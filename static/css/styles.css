@@ -1,0 +1,412 @@
+/* 右鍵選單樣式 */
+.context-menu {
+    display: none;
+    position: fixed; /* 改為fixed以確保相對於視窗定位 */
+    z-index: 1000;
+    min-width: 150px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    padding: 5px 0;
+    pointer-events: auto; /* 確保可點擊 */
+}
+
+.context-menu-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #202124;
+}
+
+.context-menu-item:hover {
+    background-color: #f8f9fa;
+}
+
+.context-menu-item.delete {
+    color: #d93025;
+}
+
+.context-menu-item.delete:hover {
+    background-color: #fee8e7;
+}/* General styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Roboto', 'Arial', sans-serif;
+}
+
+body {
+    background-color: #f8f9fa;
+    color: #202124;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden; /* 防止水平滾動條出現在整個頁面 */
+}
+
+header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+header h1 {
+    color: #1a73e8;
+    margin-bottom: 10px;
+    font-size: 2.5rem;
+}
+
+header p {
+    color: #5f6368;
+    font-size: 1.1rem;
+}
+
+/* Upload area styles */
+.upload-container {
+    margin-bottom: 40px;
+}
+
+.upload-box {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    border: 2px dashed #dadce0;
+    transition: all 0.3s;
+}
+
+.upload-box.drag-over {
+    border-color: #1a73e8;
+    background-color: #e8f0fe;
+}
+
+.upload-box svg {
+    color: #1a73e8;
+    margin-bottom: 15px;
+}
+
+.upload-box h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: #202124;
+}
+
+.upload-box p {
+    margin-bottom: 15px;
+    color: #5f6368;
+}
+
+.file-input {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+.file-label {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #1a73e8;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-weight: 500;
+}
+
+.file-label:hover {
+    background-color: #1669d6;
+}
+
+.selected-file {
+    margin: 10px 0;
+    color: #5f6368;
+}
+
+.upload-button {
+    display: block;
+    margin: 20px auto 0;
+    padding: 10px 25px;
+    background-color: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.upload-button:hover {
+    background-color: #1669d6;
+}
+
+.upload-button:disabled {
+    background-color: #dadce0;
+    cursor: not-allowed;
+}
+
+/* Google Sheets-like spreadsheet styles */
+.spreadsheet-container {
+    margin-top: 30px;
+    max-height: 70vh; /* 限制最大高度為視窗高度的70% */
+    max-width: 100%; /* 確保不超過容器寬度 */
+    overflow-y: auto; /* 垂直滾動 */
+    overflow-x: auto !important; /* 強制顯示水平滾動條 */
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    position: relative; /* 為絕對定位設置參考點 */
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #dadce0 #f8f9fa; /* Firefox */
+}
+
+/* 自定義滾動條 (Chrome, Edge, and Safari) */
+.spreadsheet-container::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.spreadsheet-container::-webkit-scrollbar-track {
+    background: #f1f3f4;
+    border-radius: 8px;
+}
+
+.spreadsheet-container::-webkit-scrollbar-thumb {
+    background-color: #dadce0;
+    border-radius: 8px;
+    border: 2px solid #f1f3f4;
+}
+
+.spreadsheet-container::-webkit-scrollbar-thumb:hover {
+    background-color: #bdc1c6;
+}
+
+.spreadsheet {
+    background-color: #fff;
+    border-radius: 8px;
+    width: 100%;
+    min-width: 100%;
+    display: inline-block; /* 確保寬度以內容為準 */
+}
+
+.sheet-title {
+    background-color: #f1f3f4;
+    padding: 10px 15px;
+    border-bottom: 1px solid #dadce0;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.sheet-title h2 {
+    font-size: 1.2rem;
+    color: #202124;
+    font-weight: 500;
+}
+
+.spreadsheet-table {
+    overflow: visible; /* 讓內容超出顯示 */
+    width: 100%;
+    min-width: 100%;
+    white-space: nowrap; /* 防止內容換行 */
+}
+
+.spreadsheet-table table {
+    width: auto; /* 讓表格寬度根據內容自動調整 */
+    border-collapse: collapse;
+    table-layout: auto; /* 根據內容決定列寬 */
+}
+
+.spreadsheet-table th, 
+.spreadsheet-table td {
+    border: 1px solid #e0e0e0;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 14px;
+    min-width: 100px;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 可編輯單元格樣式 */
+.spreadsheet-table td:not(.row-header) {
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.spreadsheet-table td:not(.row-header):hover {
+    background-color: #f8f9fa;
+}
+
+.spreadsheet-table td.editing {
+    padding: 0;
+    background-color: #e8f0fe;
+}
+
+.cell-editor {
+    width: 100%;
+    height: 100%;
+    padding: 8px 12px;
+    border: 2px solid #1a73e8;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: inherit;
+    background-color: white;
+    outline: none;
+}
+
+/* 選取樣式 */
+.spreadsheet-table th.column-header,
+.spreadsheet-table td.row-header {
+    cursor: pointer;
+    user-select: none;
+}
+
+.spreadsheet-table th.column-header:hover,
+.spreadsheet-table td.row-header:hover {
+    background-color: #e8eaed;
+}
+
+.spreadsheet-table td.selected,
+.spreadsheet-table th.selected {
+    background-color: #e8f0fe !important;
+}
+
+.spreadsheet-table tr.selected-row td {
+    background-color: #e8f0fe !important;
+}
+
+.spreadsheet-table .selected-column {
+    background-color: #e8f0fe !important;
+}
+
+.spreadsheet-table th {
+    background-color: #f1f3f4;
+    font-weight: 500;
+    color: #5f6368;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    /* 固定大小 */
+    min-width: 100px;
+    max-width: 150px;
+}
+
+.row-header {
+    background-color: #f1f3f4;
+    font-weight: 500;
+    color: #5f6368;
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    min-width: 50px !important;
+    width: 50px;
+    text-align: center !important;
+}
+
+/* 確保列頭和行頭在滾動時保持可見 */
+.row-header.column-header,
+th.row-header {
+    z-index: 15; /* 確保角落單元格位於頂層 */
+    background-color: #e8eaed;
+}
+
+.column-header {
+    text-align: center !important;
+}
+
+.spreadsheet-table td:hover {
+    background-color: #e8f0fe;
+}
+
+.spreadsheet-table tr:hover td:not(.row-header) {
+    background-color: #f8f9fa;
+}
+
+/* Error message */
+.error-message {
+    background-color: #fee8e7;
+    color: #d93025;
+    padding: 10px 15px;
+    border-radius: 4px;
+    margin-top: 15px;
+    text-align: center;
+}
+
+/* 上傳進度條樣式 */
+.progress-container {
+    width: 100%;
+    background-color: #f1f3f4;
+    border-radius: 4px;
+    margin-top: 15px;
+    overflow: hidden;
+    height: 8px;
+    display: none; /* 初始隱藏 */
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #1a73e8;
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+.progress-info {
+    display: none;
+    font-size: 14px;
+    color: #5f6368;
+    text-align: center;
+    margin-top: 5px;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+    .spreadsheet-container {
+        max-height: 60vh;
+    }
+    
+    .spreadsheet-table th,
+    .spreadsheet-table td {
+        padding: 6px 8px;
+        font-size: 12px;
+        min-width: 80px;
+    }
+    
+    .row-header {
+        min-width: 40px !important;
+        width: 40px;
+    }
+    
+    .upload-box {
+        padding: 20px;
+    }
+}
+
+/* Loading indicator */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #5f6368;
+}
+
+.loading::after {
+    content: "Loading...";
+    display: inline-block;
+    animation: ellipsis 1.5s infinite;
+}
+
+@keyframes ellipsis {
+    0% { content: "Loading."; }
+    33% { content: "Loading.."; }
+    66% { content: "Loading..."; }
+}
