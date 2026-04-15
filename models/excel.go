@@ -73,6 +73,91 @@ func columnToLetter(i int) string {
 	return result
 }
 
+// EditCell 修改指定儲存格的值並儲存到 Excel 檔案
+func EditCell(filePath string, row int, col int, value string) (*ExcelData, error) {
+	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open Excel file: %w", err)
+	}
+	defer f.Close()
+
+	sheetName := f.GetSheetName(0)
+	if sheetName == "" {
+		return nil, fmt.Errorf("no sheet found in Excel file")
+	}
+
+	// Excelize 使用 1-based 座標
+	cellRef, err := excelize.CoordinatesToCellName(col+1, row+1)
+	if err != nil {
+		return nil, fmt.Errorf("invalid cell coordinates: %w", err)
+	}
+
+	if err := f.SetCellValue(sheetName, cellRef, value); err != nil {
+		return nil, fmt.Errorf("failed to set cell value: %w", err)
+	}
+
+	if err := f.Save(); err != nil {
+		return nil, fmt.Errorf("failed to save Excel file: %w", err)
+	}
+
+	return ProcessExcelFile(filePath)
+}
+
+// DeleteRow 刪除指定行並儲存到 Excel 檔案
+func DeleteRow(filePath string, row int) (*ExcelData, error) {
+	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open Excel file: %w", err)
+	}
+	defer f.Close()
+
+	sheetName := f.GetSheetName(0)
+	if sheetName == "" {
+		return nil, fmt.Errorf("no sheet found in Excel file")
+	}
+
+	// Excelize 使用 1-based 行索引
+	if err := f.RemoveRow(sheetName, row+1); err != nil {
+		return nil, fmt.Errorf("failed to remove row: %w", err)
+	}
+
+	if err := f.Save(); err != nil {
+		return nil, fmt.Errorf("failed to save Excel file: %w", err)
+	}
+
+	return ProcessExcelFile(filePath)
+}
+
+// DeleteColumn 刪除指定列並儲存到 Excel 檔案
+func DeleteColumn(filePath string, col int) (*ExcelData, error) {
+	f, err := excelize.OpenFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open Excel file: %w", err)
+	}
+	defer f.Close()
+
+	sheetName := f.GetSheetName(0)
+	if sheetName == "" {
+		return nil, fmt.Errorf("no sheet found in Excel file")
+	}
+
+	// 將列索引轉換為欄名（Excelize 使用 1-based）
+	colName, err := excelize.ColumnNumberToName(col + 1)
+	if err != nil {
+		return nil, fmt.Errorf("invalid column index: %w", err)
+	}
+
+	if err := f.RemoveCol(sheetName, colName); err != nil {
+		return nil, fmt.Errorf("failed to remove column: %w", err)
+	}
+
+	if err := f.Save(); err != nil {
+		return nil, fmt.Errorf("failed to save Excel file: %w", err)
+	}
+
+	return ProcessExcelFile(filePath)
+}
+
 // SaveUploadedFile saves the uploaded file to the temporary directory
 func SaveUploadedFile(fileData []byte, filename string) (string, error) {
 	// Create uploads directory if it doesn't exist

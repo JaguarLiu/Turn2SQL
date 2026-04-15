@@ -1,0 +1,12 @@
+{{define "content"}}
+<header>
+    <h1>Excel Data Viewer</h1>
+    <div class="back-link">
+        <a href="/">Upload Another File</a>
+    </div>
+</header>
+
+<div class="spreadsheet-container">
+    {{template "data_table" .}}
+</div>
+{{end}}

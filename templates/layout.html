@@ -1,0 +1,53 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Excel Upload &amp; Viewer</title>
+        <link href="/static/css/styles.css" rel="stylesheet"/>
+        <script src="/static/js/htmx.min.js"></script>
+        <script type="module" src="/static/js/init.js"></script>
+        <script type="module" src="/static/js/sidebar.js"></script>
+    </head>
+    <body>
+        <!-- Sidebar Navbar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="sidebar-actions">
+                <button class="new-item-btn" title="New Upload" onclick="document.querySelector('#file-input').click()">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <span class="action-text">New Upload</span>
+                </button>
+            </div>
+            <div class="sidebar-content" id="file-list">
+                <!-- Files will be dynamically added here -->
+                <div class="empty-list">
+                    <span class="empty-text">No files</span>
+                    <span class="empty-icon">-</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        <div class="main-content" id="main-content">
+            <div class="container">
+                {{template "content" .}}
+            </div>
+        </div>
+    </body>
+</html>
+{{end}}
