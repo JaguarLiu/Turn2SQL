@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"log"
-	"turn/templates"
+	"turn2sql/templates"
 
 	"github.com/gin-gonic/gin"
 )

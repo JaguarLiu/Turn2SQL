@@ -1,4 +1,4 @@
-module turn
+module turn2sql
 
 go 1.25.0
 

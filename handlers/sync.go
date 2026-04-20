@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"time"
-	"turn/models"
+	"turn2sql/models"
 
 	"github.com/gin-gonic/gin"
 )

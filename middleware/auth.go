@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"net/http"
-	"turn/models"
+	"turn2sql/models"
 
 	"github.com/gin-gonic/gin"
 )

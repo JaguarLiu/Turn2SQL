@@ -3,8 +3,8 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"turn/middleware"
-	"turn/models"
+	"turn2sql/middleware"
+	"turn2sql/models"
 
 	"github.com/gin-gonic/gin"
 )

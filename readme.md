@@ -1,3 +1,5 @@
+🌐 Language: **English** · [繁體中文](README.zh-TW.md)
+
 # Turn2SQL
 
 A Go web application for uploading Excel/CSV files and converting them to SQL statements across multiple dialects. The frontend is a Windows 95-themed UI that parses spreadsheets client-side and generates SQL DDL/DML in-browser. Templates can be synced across devices via an anonymous **sync code** or a **registered account**.
@@ -28,7 +30,7 @@ A Go web application for uploading Excel/CSV files and converting them to SQL st
 ## Project Structure
 
 ```
-turn/
+turn2sql/
 ├── main.go                    # DB init, routes, middleware registration
 ├── go.mod / go.sum
 ├── handlers/
@@ -69,7 +71,7 @@ turn/
 
 ```bash
 git clone <repo-url>
-cd turn
+cd turn2sql
 go mod download
 go run main.go
 ```

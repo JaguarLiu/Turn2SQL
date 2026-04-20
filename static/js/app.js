@@ -103,8 +103,15 @@ function renderSheet() {
         <span class="label">Output:</span>
         <label class="radio-row"><input type="radio" class="w95" name="sql-mode" ${t.mode==='create'?'checked':''} onchange="updateActive(t=>t.mode='create')"> CREATE</label>
         <label class="radio-row"><input type="radio" class="w95" name="sql-mode" ${t.mode==='insert'?'checked':''} onchange="updateActive(t=>t.mode='insert')"> INSERT</label>
-        <label class="radio-row"><input type="radio" class="w95" name="sql-mode" ${t.mode==='both'?'checked':''}   onchange="updateActive(t=>t.mode='both')"> BOTH</label>
+        <label class="radio-row"><input type="radio" class="w95" name="sql-mode" ${t.mode==='update'?'checked':''} onchange="openWhereDialog()"> UPDATE</label>
+        <label class="radio-row"><input type="radio" class="w95" name="sql-mode" ${t.mode==='both'?'checked':''}   onchange="updateActive(t=>t.mode='both')"> CREATE &amp; INSERT</label>
       </div>
+      ${t.mode === 'update' ? `
+      <div class="group" style="gap:4px">
+        <span class="label">WHERE:</span>
+        <span class="info" style="padding:0 4px">${(t.whereCols||[]).length ? (t.whereCols||[]).map(n=>escapeHtml(n)).join(', ') : '<i style="color:#808080">(尚未選擇)</i>'}</span>
+        <button class="w95 small" onclick="openWhereDialog()">編輯...</button>
+      </div>` : ''}
       <div class="spacer"></div>
       <button class="w95" onclick="previewSQL()">
         <svg width="14" height="14" viewBox="0 0 16 16" shape-rendering="crispEdges" style="vertical-align:-3px;margin-right:3px">
@@ -266,6 +273,7 @@ function createTemplateFromData(filename, allRows, headerRowIndex) {
     tableName: Turn2SQL.safeTableName(filename),
     dialect: 'mysql',
     mode: 'insert',
+    whereCols: [],
     fields, rows,
     createdAt: Date.now(),
   };
@@ -438,20 +446,45 @@ function handleKeyDelete(e) {
 }
 
 // ----- cell editing -----
+let _cellPersistTimer = null;
+function scheduleCellPersist(id) {
+  if (_cellPersistTimer) clearTimeout(_cellPersistTimer);
+  _cellPersistTimer = setTimeout(() => {
+    _cellPersistTimer = null;
+    saveTemplates();
+    if (window.Sync) Sync.markDirty(id);
+  }, 400);
+}
+
 function editCell(ri, ci, td) {
-  const current = getActive().rows[ri][ci] ?? '';
+  const t = getActive(); if (!t) return;
+  const current = t.rows[ri][ci] ?? '';
   td.classList.add('editing');
   td.innerHTML = `<input class="cell-input" value="${escapeAttr(current)}">`;
   const inp = td.querySelector('input');
   inp.focus(); inp.select();
+
+  let done = false;
+  const finish = (displayVal) => {
+    if (done) return;
+    done = true;
+    td.classList.remove('editing');
+    td.innerHTML = `<div class="cell-inner">${escapeHtml(displayVal)}</div>`;
+  };
   const commit = () => {
+    if (done) return;
     const v = inp.value;
-    updateActive(t => { t.rows[ri][ci] = v; });
+    if (v !== current) {
+      t.rows[ri][ci] = v;
+      t.updatedAt = new Date().toISOString();
+      scheduleCellPersist(t.id);
+    }
+    finish(v);
   };
   inp.addEventListener('blur', commit);
   inp.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { commit(); }
-    else if (e.key === 'Escape') { renderSheet(); }
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(current); }
   });
 }
 
@@ -517,6 +550,7 @@ window.selectCell = selectCell;
 window.selectAllCells = selectAllCells;
 window.handleKeyDelete = handleKeyDelete;
 window.editCell = editCell;
+
 window.inlineEditHeader = inlineEditHeader;
 window.showColMenu = showColMenu;
 window.addColumnAt = addColumnAt;
@@ -537,3 +571,11 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 window.escapeHtml = escapeHtml; window.escapeAttr = escapeAttr;
+
+window.addEventListener('beforeunload', () => {
+  if (_cellPersistTimer) {
+    clearTimeout(_cellPersistTimer);
+    _cellPersistTimer = null;
+    saveTemplates();
+  }
+});

@@ -65,7 +65,7 @@ function formatValue(raw, type, dialect) {
   return "'" + s.replace(/'/g, "''") + "'";
 }
 
-function generateSQL({ tableName, fields, rows, dialect, mode }) {
+function generateSQL({ tableName, fields, rows, dialect, mode, whereCols }) {
   const tbl = safeTableName(tableName);
   const qTbl = quoteIdent(tbl, dialect);
   const lines = [];
@@ -100,6 +100,34 @@ function generateSQL({ tableName, fields, rows, dialect, mode }) {
       for (const row of rows) {
         const vals = cols.map((_, i) => formatValue(row[i], cols[i].type, dialect));
         lines.push(`INSERT INTO ${qTbl} (${colList}) VALUES (${vals.join(', ')});`);
+      }
+    }
+  }
+
+  if (mode === 'update') {
+    const whereSet = new Set(whereCols || []);
+    const whereIdx = cols.map((f, i) => whereSet.has(f.name) ? i : -1).filter(i => i >= 0);
+    const setIdx   = cols.map((_, i) => i).filter(i => !whereSet.has(cols[i].name));
+
+    if (whereIdx.length === 0) {
+      lines.push('-- (UPDATE requires at least one WHERE column — none selected)');
+    } else if (setIdx.length === 0) {
+      lines.push('-- (no non-WHERE columns available to SET)');
+    } else if (rows.length === 0) {
+      lines.push('-- (no data rows to update)');
+    } else {
+      for (const row of rows) {
+        const setClause = setIdx
+          .map(i => `${quoteIdent(cols[i].name, dialect)} = ${formatValue(row[i], cols[i].type, dialect)}`)
+          .join(', ');
+        const whereClause = whereIdx
+          .map(i => {
+            const v = formatValue(row[i], cols[i].type, dialect);
+            const q = quoteIdent(cols[i].name, dialect);
+            return v === 'NULL' ? `${q} IS NULL` : `${q} = ${v}`;
+          })
+          .join(' AND ');
+        lines.push(`UPDATE ${qTbl} SET ${setClause} WHERE ${whereClause};`);
       }
     }
   }

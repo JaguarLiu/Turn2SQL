@@ -22,12 +22,6 @@
                         </svg>
                         Turn2SQL — Excel &amp; CSV to SQL Converter
                     </div>
-                    <div class="title-bar-controls">
-                        <button title="Account / Sync" onclick="openAccountDialog()" style="font-weight:bold">👤</button>
-                        <button title="minimize">_</button>
-                        <button title="maximize">☐</button>
-                        <button title="close">✕</button>
-                    </div>
                 </div>
 
                 <div class="body-row">
@@ -35,15 +29,17 @@
                     <aside class="nav-pane">
                         <div class="nav-header">
                             <span>📁 Templates</span>
-                            <button class="w95 icon-btn" title="新增範本 (上傳檔案)" onclick="openUploadDialog({forceNew:true})" style="font-weight:bold">
-                                <svg width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
-                                    <rect x="5" y="1" width="2" height="10" fill="#008000"/>
-                                    <rect x="1" y="5" width="10" height="2" fill="#008000"/>
-                                </svg>
-                            </button>
+                            <div style="display:flex;gap:3px">
+                                <button class="w95 icon-btn" title="Account / Sync" onclick="openAccountDialog()" style="font-weight:bold">👤</button>
+                                <button class="w95 icon-btn" title="新增範本 (上傳檔案)" onclick="openUploadDialog({forceNew:true})" style="font-weight:bold">
+                                    <svg width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+                                        <rect x="5" y="1" width="2" height="10" fill="#008000"/>
+                                        <rect x="1" y="5" width="10" height="2" fill="#008000"/>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="nav-list" id="nav-list"></div>
-                        <div class="nav-footer">stored locally<br/>in browser</div>
                     </aside>
 
                     <!-- Right pane -->
@@ -92,10 +88,10 @@
         </script>
 
         <!-- App scripts -->
-        <script src="/static/js/sql.js?v=4"></script>
-        <script src="/static/js/app.js?v=4"></script>
+        <script src="/static/js/sql.js?v=6"></script>
+        <script src="/static/js/app.js?v=6"></script>
         <script src="/static/js/sync.js?v=1"></script>
-        <script src="/static/js/dialogs.js?v=4"></script>
+        <script src="/static/js/dialogs.js?v=6"></script>
 
         <script>
             // ---------- theme + tweaks ----------

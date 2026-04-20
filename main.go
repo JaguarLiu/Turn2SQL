@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
-	"turn/handlers"
-	"turn/middleware"
-	"turn/models"
+	"turn2sql/handlers"
+	"turn2sql/middleware"
+	"turn2sql/models"
 
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"

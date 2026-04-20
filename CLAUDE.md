@@ -71,7 +71,7 @@ All three also bump `t.updatedAt` to an ISO string so the server's optimistic-lo
 ## Key Conventions
 
 - Chinese comments/strings are intentional
-- Go module is `turn` (imports: `turn/handlers`, `turn/middleware`, `turn/models`, `turn/templates`)
+- Go module is `turn2sql` (imports: `turn2sql/handlers`, `turn2sql/middleware`, `turn2sql/models`, `turn2sql/templates`)
 - Frontend is vanilla JS (no build step). Add new scripts to `layout.html` in the existing order (sql → app → sync → dialogs)
 - Server endpoints return JSON, not HTML fragments — frontend is state-driven
 - Sync code workspaces have `owner_user_id = NULL`. Logging in always uses the user's own workspace (ignores any local sync code). Claim merges an anonymous workspace's templates into the user's workspace

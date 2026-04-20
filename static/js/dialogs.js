@@ -155,8 +155,13 @@ function saveField(idx) {
 // ----- SQL preview dialog -----
 function previewSQL() {
   const t = getActive(); if (!t) return;
+  if (t.mode === 'update' && (!t.whereCols || t.whereCols.length === 0)) {
+    openAlert('UPDATE 模式需要至少勾選一個欄位作為 WHERE 條件。');
+    return;
+  }
   const sql = Turn2SQL.generateSQL({
     tableName: t.tableName, fields: t.fields, rows: t.rows, dialect: t.dialect, mode: t.mode,
+    whereCols: t.whereCols || [],
   });
   const host = document.getElementById('modal-host');
   host.innerHTML = `
@@ -186,8 +191,13 @@ function previewSQL() {
 
 function downloadSQL() {
   const t = getActive(); if (!t) return;
+  if (t.mode === 'update' && (!t.whereCols || t.whereCols.length === 0)) {
+    openAlert('UPDATE 模式需要至少勾選一個欄位作為 WHERE 條件。');
+    return;
+  }
   const sql = Turn2SQL.generateSQL({
     tableName: t.tableName, fields: t.fields, rows: t.rows, dialect: t.dialect, mode: t.mode,
+    whereCols: t.whereCols || [],
   });
   const blob = new Blob([sql], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -403,6 +413,55 @@ async function accountClaim() {
     closeModal();
   } catch (err) { openAlert('認領失敗: ' + err.message); }
 }
+
+// ----- WHERE-cols picker dialog (for UPDATE mode) -----
+function openWhereDialog() {
+  const t = getActive(); if (!t) return;
+  const selected = new Set(t.whereCols || []);
+  const host = document.getElementById('modal-host');
+  host.innerHTML = `
+    <div class="modal-overlay">
+      <div class="dialog" style="min-width:360px;max-width:90vw">
+        <div class="title-bar">
+          <div class="title-bar-text">🔑 選擇 WHERE 條件欄位</div>
+          <div class="title-bar-controls"><button onclick="cancelWhereDialog()">✕</button></div>
+        </div>
+        <div class="dialog-body">
+          <div style="font-size:11px;color:#505050;margin-bottom:6px">
+            勾選做為 <b>UPDATE ... WHERE</b> 條件的欄位（至少選一個）。其餘欄位會放到 SET 子句。
+          </div>
+          <select id="where-listbox" class="w95" multiple size="${Math.min(10, Math.max(4, t.fields.length))}"
+                  style="width:100%;font-family:Consolas,monospace;font-size:12px">
+            ${t.fields.map(f => `
+              <option value="${escapeAttr(f.name)}" ${selected.has(f.name)?'selected':''}>${escapeHtml(f.name)} — ${escapeHtml(f.type)}</option>
+            `).join('')}
+          </select>
+          <div style="font-size:10px;color:#808080;margin-top:4px">按住 Ctrl / Shift 多選</div>
+        </div>
+        <div class="dialog-footer">
+          <button class="w95" onclick="cancelWhereDialog()">Cancel</button>
+          <button class="w95" onclick="confirmWhereDialog()" style="font-weight:bold">OK</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function confirmWhereDialog() {
+  const box = document.getElementById('where-listbox');
+  const names = Array.from(box.selectedOptions).map(o => o.value);
+  if (names.length === 0) { openAlert('請至少勾選一個欄位作為 WHERE 條件。'); return; }
+  updateActive(t => { t.whereCols = names; t.mode = 'update'; });
+  closeModal();
+}
+
+function cancelWhereDialog() {
+  closeModal();
+  renderSheet(); // t.mode unchanged — re-render restores radio state
+}
+
+window.openWhereDialog = openWhereDialog;
+window.confirmWhereDialog = confirmWhereDialog;
+window.cancelWhereDialog = cancelWhereDialog;
 
 window.openUploadDialog = openUploadDialog;
 window.closeUploadDialog = closeUploadDialog;
