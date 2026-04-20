@@ -1,4 +1,4 @@
-// Turn2SQL — core app logic (vanilla JS + htmx patterns)
+// Turn2SQL — core app logic (vanilla JS)
 // Global state
 const App = {
   templates: [],      // [{ id, name, tableName, dialect, mode, fields:[{name,type}], rows:[[...]], createdAt }]
@@ -44,7 +44,9 @@ function getActive() {
 function updateActive(fn) {
   const t = getActive(); if (!t) return;
   fn(t);
+  t.updatedAt = new Date().toISOString();
   saveTemplates();
+  if (window.Sync) Sync.markDirty(t.id);
   renderSheet();
   renderNav();
 }
@@ -241,6 +243,7 @@ function deleteTemplate(id) {
     App.templates = App.templates.filter(t => t.id !== id);
     if (App.activeId === id) App.activeId = App.templates[0]?.id || null;
     saveTemplates(); saveUI();
+    if (window.Sync) Sync.markDeleted(id);
     renderNav(); renderSheet();
   });
 }
@@ -266,9 +269,11 @@ function createTemplateFromData(filename, allRows, headerRowIndex) {
     fields, rows,
     createdAt: Date.now(),
   };
+  t.updatedAt = new Date().toISOString();
   App.templates.unshift(t);
   App.activeId = t.id;
   saveTemplates(); saveUI();
+  if (window.Sync) Sync.markDirty(t.id);
   renderNav(); renderSheet();
 }
 

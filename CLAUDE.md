@@ -4,39 +4,75 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Go web application that uploads Excel files and converts them into SQL DDL/DML across multiple dialects. Frontend is a Windows 95-themed UI (Turn2SQL) that parses Excel/CSV client-side via SheetJS and generates SQL in-browser. Stack: Gin (HTTP), html/template (Go standard lib), Excelize v2 (server-side Excel parsing), SheetJS (client-side parsing), htmx (loaded but not currently wired — reserved for future server integration).
+Turn2SQL — a Go web application that converts Excel/CSV files into SQL DDL/DML across multiple dialects. The UI is a Windows 95-themed client-side SPA that parses files in-browser with SheetJS. Templates (field schema + row data + table name + dialect + mode) are stored locally and optionally synced across devices via an anonymous **sync code** or a **registered account**.
+
+The server's only job is serving the static shell and persisting synced templates. All Excel/CSV parsing and SQL generation happens in the browser.
+
+Stack: Gin (HTTP), SQLite via `modernc.org/sqlite` (pure Go, no CGO), `html/template`, SheetJS (client-side parsing, served locally), bcrypt (`golang.org/x/crypto/bcrypt`).
 
 ## Build & Run Commands
 
 ```bash
-# Install dependencies
 go mod download
-
-# Run the server (serves on :8080)
-go run main.go
-
-# Build production binary
+go run main.go              # serves :8080, creates ./data.db on first run
 go build -o excel-uploader
 ```
 
 ## Architecture
 
-**Request flow:** Gin router (`main.go`) -> handlers (`handlers/upload.go`) -> models (`models/excel.go`) for Excel processing, html/template (`templates/*.html` + `templates/render.go`) for HTML rendering.
+### Request flow
 
-- **`main.go`** - Route definitions. Static files served from `static/`. Routes: `GET /` (index), `POST /upload` (file upload), `GET /data/:filename` (view previously uploaded file). API routes for cell editing (`POST /api/edit-cell`) and row/column deletion (`DELETE /api/delete-row`, `DELETE /api/delete-column`).
-- **`handlers/upload.go`** - Upload handler reads Excel bytes into memory, saves to `uploads/`, processes with Excelize, then renders response. Detects htmx requests via `HX-Request` header to return partial HTML vs full page. Edit/delete handlers modify the Excel file and return updated table HTML.
-- **`models/excel.go`** - `ExcelData` struct holds parsed spreadsheet data. `ProcessExcelFile` reads only the first sheet. `EditCell`, `DeleteRow`, `DeleteColumn` modify the Excel file on disk via Excelize. Column headers are generated as Excel-style letters (A, B, ..., AA, AB, ...), not from file content. Uploaded files are saved to `./uploads/`.
-- **`templates/`** - Uses Go standard `html/template`. `layout.html` is the Turn2SQL Win95 shell (title-bar, nav-pane, sheet-pane `#sheet-root`, modal host, tweaks panel, inline boot script). `{{template "content" .}}` renders inside `#sheet-root` but is overwritten when the client-side `boot()` runs. `index.html` and `data_page.html` are server-side content blocks (legacy fallback); `data_table.html` is the spreadsheet fragment. `render.go` exports `RenderIndex`, `RenderDataTable`, `RenderDataPage`.
+Gin router (`main.go`) → global `CurrentUser` middleware (attaches user if session cookie valid) → handlers. Most sync routes are gated by `RequireWorkspace` (resolves either the logged-in user's workspace or one matched by the `X-Sync-Code` header).
 
-**Frontend** (`static/`):
-- **CSS**: `win95.css` — Windows 95 aesthetic, theme variables (teal/navy/aubergine/olive).
-- **JS**: `sql.js` (multi-dialect SQL generation: MySQL/Postgres/MSSQL/SQLite/ANSI), `app.js` (global `App` state, localStorage persistence of templates under `turn2sql.templates.v1`, rendering of nav + sheet), `dialogs.js` (upload/field-edit/confirm/SQL-preview modals). Loaded as classic scripts (not ES modules) in order: sql → app → dialogs. `htmx.min.js` is included locally but the current UI is client-side only.
-- **External**: SheetJS (`xlsx.full.min.js`) from CDN for client-side `.xlsx`/`.xls`/`.csv` parsing.
+### Go packages
+
+- **`main.go`** — DB init, route registration. Static at `/static`, page at `/`, auth (`/api/auth/{register,login,logout,me}`), workspace (`/api/workspace`, `/api/workspace/anon`, `/api/workspace/claim`), template sync (`GET|PUT|DELETE /api/templates[/:id]`). Runs on `:8000`.
+- **`handlers/`**
+  - `index.go` — renders the shell page via `templates.RenderIndex`.
+  - `auth.go` — register/login/logout/me. Issues `t2s_session` HttpOnly cookie with a 32-byte hex token.
+  - `sync.go` — workspace + template CRUD. `PutTemplate` performs optimistic-lock check against stored `updated_at` (rejects with 409 on `ErrStaleUpdate`).
+- **`middleware/auth.go`** — `CurrentUser` (always-run, best-effort user attach), `RequireWorkspace` (user's own workspace or `X-Sync-Code`), `RequireUser` (403 if anonymous).
+- **`models/`**
+  - `db.go` — opens SQLite with `foreign_keys=1` and `journal_mode=WAL`, runs schema migrations on startup. Global `models.DB`.
+  - `user.go` — bcrypt (DefaultCost). `ErrEmailTaken`, `ErrInvalidCred`, `ErrWeakPassword` (min 8 chars), `ErrInvalidEmail`.
+  - `session.go` — 30-day sessions in the `sessions` table.
+  - `workspace.go` — `CreateAnonymousWorkspace` / `GetOrCreateUserWorkspace` / `GetWorkspaceBySyncCode` / `ClaimWorkspace` (transactional: merges the claimer's existing workspace templates into the target then deletes the old). `UpsertTemplate` rejects stale writes. Sync codes are 10-char lowercase base32 (~50 bits entropy).
+- **`templates/`** — `layout.html` is the Win95 shell (title-bar with 👤 Account button, nav-pane, sheet-pane `#sheet-root`, modal host, tweaks panel, inline boot script). `index.html` is a minimal loading placeholder rendered inside `#sheet-root` until client `boot()` overwrites it. `render.go` exports only `RenderIndex`.
+
+### Database schema (SQLite at `./data.db`)
+
+```
+users       (id, email UNIQUE, password_hash, created_at)
+sessions    (id PK, user_id FK, expires_at)
+workspaces  (id, owner_user_id FK NULLABLE, sync_code UNIQUE)
+            -- unique index on owner_user_id WHERE NOT NULL → 1 workspace per user
+templates   (id PK client-generated, workspace_id FK, name, data_json, updated_at)
+```
+
+### Frontend (`static/`)
+
+- **CSS**: `win95.css` — Windows 95 aesthetic + theme variables. Fonts served locally from `static/fonts/`.
+- **JS** (loaded in order as classic scripts, no ES modules, no build step):
+  1. `xlsx.full.min.js` — SheetJS (local copy)
+  2. `sql.js` — multi-dialect SQL generation (MySQL/Postgres/MSSQL/SQLite/ANSI)
+  3. `app.js` — global `App` state object, localStorage persistence (`turn2sql.templates.v1`, `turn2sql.ui.v1`), nav + sheet rendering, cell/col/row selection & editing
+  4. `sync.js` — `Sync` module: `init()` (pull on boot if session or code exists), `markDirty(id)` / `markDeleted(id)` (debounced 600ms batch flush), `register/login/logout/claimSyncCode/createSyncCode/useSyncCode`. Hooks into `online`/`offline` events to retry on reconnect.
+  5. `dialogs.js` — upload / field-edit / confirm / SQL-preview / **account** dialogs. Account dialog has three tabs: Sync Code / Login / Register.
+
+### Sync integration points in `app.js`
+
+Only three mutation sites call `Sync.markDirty` / `Sync.markDeleted`:
+- `updateActive()` → `Sync.markDirty(t.id)` after local save (covers all field/cell edits)
+- `createTemplateFromData()` → `Sync.markDirty(t.id)` on upload
+- `deleteTemplate()` → `Sync.markDeleted(id)` inside the confirm callback
+
+All three also bump `t.updatedAt` to an ISO string so the server's optimistic-lock check works.
 
 ## Key Conventions
 
-- The project contains Chinese comments in some places (this is intentional)
-- Go module name is `turn` (imports use `turn/handlers`, `turn/models`, `turn/templates`)
-- Templates use Go standard `html/template` with `{{define}}` blocks for composition
-- Turn2SQL UI state lives in `localStorage` (templates + active id); there is no server persistence for the SQL-generation flow — server handlers only serve the legacy Excel upload/edit/delete endpoints
-- Frontend JS is intentionally vanilla (no build step); add new script tags to `layout.html` in the existing sql → app → dialogs order
+- Chinese comments/strings are intentional
+- Go module is `turn` (imports: `turn/handlers`, `turn/middleware`, `turn/models`, `turn/templates`)
+- Frontend is vanilla JS (no build step). Add new scripts to `layout.html` in the existing order (sql → app → sync → dialogs)
+- Server endpoints return JSON, not HTML fragments — frontend is state-driven
+- Sync code workspaces have `owner_user_id = NULL`. Logging in always uses the user's own workspace (ignores any local sync code). Claim merges an anonymous workspace's templates into the user's workspace
+- Offline-first: all mutations write to localStorage first, then queue for background push. Failed pushes (except 409 conflicts) are retried on reconnect

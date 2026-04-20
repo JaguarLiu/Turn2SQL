@@ -246,6 +246,164 @@ function openAlert(msg) {
 }
 function closeModal() { document.getElementById('modal-host').innerHTML = ''; }
 
+// ---------- Account / Sync dialog ----------
+function openAccountDialog() {
+  const host = document.getElementById('modal-host');
+  const s = Sync.status();
+  const loggedIn = !!s.user;
+  const hasCode  = !!s.code;
+
+  const header = (title) => `
+    <div class="title-bar">
+      <div class="title-bar-text">👤 ${title}</div>
+      <div class="title-bar-controls"><button onclick="closeModal()">✕</button></div>
+    </div>`;
+
+  let body = '';
+  if (loggedIn) {
+    body = `
+      <div class="dialog-body">
+        <p style="margin:0 0 8px"><b>已登入:</b> ${escapeHtml(s.user.email)}</p>
+        <p style="margin:0 0 12px;font-size:11px;color:#404040">範本會自動同步到你的帳號,所有登入此帳號的裝置都會看到。</p>
+        <div class="row"><button class="w95" onclick="accountClaim()">認領 Sync Code 到此帳號</button></div>
+        <div class="row"><button class="w95" onclick="accountLogout()">登出</button></div>
+      </div>`;
+  } else {
+    body = `
+      <div class="dialog-body">
+        <div class="row" style="gap:4px">
+          <button class="w95 small" onclick="renderAccountTab('code')"  id="tab-code">🔗 Sync Code</button>
+          <button class="w95 small" onclick="renderAccountTab('login')" id="tab-login">Login</button>
+          <button class="w95 small" onclick="renderAccountTab('reg')"   id="tab-reg">Register</button>
+        </div>
+        <hr style="border:none;border-top:1px solid #808080;border-bottom:1px solid #fff;margin:6px 0"/>
+        <div id="account-tab"></div>
+      </div>`;
+  }
+
+  host.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="dialog" style="min-width:420px">
+        ${header(loggedIn ? 'Account' : 'Account / Sync')}
+        ${body}
+      </div>
+    </div>`;
+
+  if (!loggedIn) renderAccountTab(hasCode ? 'code' : 'code');
+}
+
+function renderAccountTab(which) {
+  const el = document.getElementById('account-tab');
+  if (!el) return;
+  const s = Sync.status();
+  ['tab-code','tab-login','tab-reg'].forEach(id => {
+    const b = document.getElementById(id); if (b) b.style.fontWeight = 'normal';
+  });
+  const active = { code: 'tab-code', login: 'tab-login', reg: 'tab-reg' }[which];
+  const ab = document.getElementById(active); if (ab) ab.style.fontWeight = 'bold';
+
+  if (which === 'code') {
+    el.innerHTML = `
+      <p style="margin:0 0 6px;font-size:11px;color:#404040">輸入現有的 Sync Code 從別的裝置同步,或產生新的。</p>
+      <div class="row">
+        <label style="width:90px">Current code:</label>
+        <input class="w95" id="cur-code" type="text" readonly value="${escapeHtml(s.code || '(尚未啟用)')}" style="flex:1">
+      </div>
+      <div class="row">
+        <label style="width:90px">Use code:</label>
+        <input class="w95" id="input-code" type="text" placeholder="例如: j4kz9m2qx5" style="flex:1">
+        <button class="w95 small" onclick="accountUseCode()">套用</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="w95" onclick="accountCreateCode()">產生新的 Sync Code</button>
+        ${s.code ? `<button class="w95 small" onclick="accountClearCode()">停用同步</button>` : ''}
+      </div>`;
+  } else if (which === 'login') {
+    el.innerHTML = `
+      <div class="row"><label style="width:80px">Email:</label>
+        <input class="w95" id="auth-email" type="email" style="flex:1"></div>
+      <div class="row"><label style="width:80px">Password:</label>
+        <input class="w95" id="auth-pass" type="password" style="flex:1"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="w95" onclick="accountLogin()" style="font-weight:bold">Login</button>
+      </div>`;
+  } else {
+    el.innerHTML = `
+      <p style="margin:0 0 6px;font-size:11px;color:#404040">註冊帳號後,目前的本地範本會自動上傳到你的帳號。</p>
+      <div class="row"><label style="width:80px">Email:</label>
+        <input class="w95" id="auth-email" type="email" style="flex:1"></div>
+      <div class="row"><label style="width:80px">Password:</label>
+        <input class="w95" id="auth-pass" type="password" placeholder="8 chars+" style="flex:1"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="w95" onclick="accountRegister()" style="font-weight:bold">Create Account</button>
+      </div>`;
+  }
+}
+
+async function accountCreateCode() {
+  try {
+    const code = await Sync.createSyncCode();
+    Sync.showToast('已產生 Sync Code: ' + code);
+    openAccountDialog();
+    // Push current local templates to new workspace
+    App.templates.forEach(t => Sync.markDirty(t.id));
+  } catch (err) { openAlert('產生失敗: ' + err.message); }
+}
+
+async function accountUseCode() {
+  const v = document.getElementById('input-code').value.trim();
+  if (!v) { openAlert('請輸入 Sync Code'); return; }
+  try {
+    await Sync.useSyncCode(v);
+    Sync.showToast('已連接 Sync Code');
+    closeModal();
+  } catch (err) { openAlert('連接失敗: ' + err.message); }
+}
+
+function accountClearCode() {
+  Sync.clearSyncCode();
+  Sync.showToast('已停用同步 (本地資料保留)');
+  openAccountDialog();
+}
+
+async function accountLogin() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  try {
+    await Sync.login(email, pass);
+    Sync.showToast('已登入: ' + email);
+    closeModal();
+  } catch (err) { openAlert('登入失敗: ' + err.message); }
+}
+
+async function accountRegister() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  try {
+    await Sync.register(email, pass);
+    // Push all existing local templates to the new account
+    App.templates.forEach(t => Sync.markDirty(t.id));
+    Sync.showToast('註冊成功: ' + email);
+    closeModal();
+  } catch (err) { openAlert('註冊失敗: ' + err.message); }
+}
+
+async function accountLogout() {
+  await Sync.logout();
+  Sync.showToast('已登出');
+  openAccountDialog();
+}
+
+async function accountClaim() {
+  const code = prompt('輸入要認領的 Sync Code:');
+  if (!code) return;
+  try {
+    await Sync.claimSyncCode(code);
+    Sync.showToast('已認領 workspace');
+    closeModal();
+  } catch (err) { openAlert('認領失敗: ' + err.message); }
+}
+
 window.openUploadDialog = openUploadDialog;
 window.closeUploadDialog = closeUploadDialog;
 window.handleFile = handleFile;
@@ -256,6 +414,15 @@ window.downloadSQL = downloadSQL;
 window.openConfirm = openConfirm;
 window.openAlert = openAlert;
 window.closeModal = closeModal;
+window.openAccountDialog = openAccountDialog;
+window.renderAccountTab = renderAccountTab;
+window.accountCreateCode = accountCreateCode;
+window.accountUseCode = accountUseCode;
+window.accountClearCode = accountClearCode;
+window.accountLogin = accountLogin;
+window.accountRegister = accountRegister;
+window.accountLogout = accountLogout;
+window.accountClaim = accountClaim;
 window.colLetter = window.colLetter || function(i) {
   let s=''; i=i+1; while(i>0){const r=(i-1)%26; s=String.fromCharCode(65+r)+s; i=Math.floor((i-1)/26);} return s;
 };

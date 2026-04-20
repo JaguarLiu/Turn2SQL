@@ -3,29 +3,53 @@ package main
 import (
 	"log"
 	"turn/handlers"
+	"turn/middleware"
+	"turn/models"
 
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	if err := models.InitDB("./data.db"); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
 	router := gin.Default()
 
-	// Serve static files
+	// Static files
 	router.Use(static.Serve("/static", static.LocalFile("./static", false)))
 
-	// Routes
+	// Attach current user (if any) to every request
+	router.Use(middleware.CurrentUser)
+
+	// Pages
 	router.GET("/", handlers.IndexHandler)
-	router.POST("/upload", handlers.UploadExcel)
-	router.GET("/data/:filename", handlers.GetExcelData)
 
-	// API routes - 回傳 HTML 片段供 htmx swap
-	router.POST("/api/edit-cell", handlers.EditCell)
-	router.DELETE("/api/delete-row", handlers.DeleteRow)
-	router.DELETE("/api/delete-column", handlers.DeleteColumn)
+	// Auth API
+	auth := router.Group("/api/auth")
+	{
+		auth.POST("/register", handlers.Register)
+		auth.POST("/login", handlers.Login)
+		auth.POST("/logout", handlers.Logout)
+		auth.GET("/me", handlers.Me)
+	}
 
-	log.Println("Server starting on http://localhost:8080")
-	if err := router.Run(":8080"); err != nil {
+	// Workspace — anon create is public; claim requires login
+	router.POST("/api/workspace/anon", handlers.CreateAnonymousWorkspace)
+	router.POST("/api/workspace/claim", middleware.RequireUser, handlers.ClaimWorkspace)
+	router.GET("/api/workspace", middleware.RequireWorkspace, handlers.GetWorkspace)
+
+	// Template sync
+	tmpl := router.Group("/api/templates", middleware.RequireWorkspace)
+	{
+		tmpl.GET("", handlers.ListTemplates)
+		tmpl.PUT("/:id", handlers.PutTemplate)
+		tmpl.DELETE("/:id", handlers.DeleteTemplate)
+	}
+
+	log.Println("Server starting on http://localhost:8000")
+	if err := router.Run(":8000"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
