@@ -1,53 +1,162 @@
 {{define "layout"}}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
     <head>
         <meta charset="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-        <title>Excel Upload &amp; Viewer</title>
-        <link href="/static/css/styles.css" rel="stylesheet"/>
+        <title>Turn2SQL — Windows 95 Edition</title>
+        <link href="/static/css/win95.css" rel="stylesheet"/>
+        <!-- SheetJS for xlsx parsing (client-side, served locally) -->
+        <script src="/static/js/xlsx.full.min.js"></script>
+        <!-- htmx (served locally for offline development) -->
         <script src="/static/js/htmx.min.js"></script>
-        <script type="module" src="/static/js/init.js"></script>
-        <script type="module" src="/static/js/sidebar.js"></script>
     </head>
-    <body>
-        <!-- Sidebar Navbar -->
-        <nav class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" onclick="toggleSidebar()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-            <div class="sidebar-actions">
-                <button class="new-item-btn" title="New Upload" onclick="document.querySelector('#file-input').click()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    <span class="action-text">New Upload</span>
-                </button>
-            </div>
-            <div class="sidebar-content" id="file-list">
-                <!-- Files will be dynamically added here -->
-                <div class="empty-list">
-                    <span class="empty-text">No files</span>
-                    <span class="empty-icon">-</span>
+    <body class="theme-teal">
+        <div class="app-shell">
+            <div class="window main-window">
+                <!-- Title bar -->
+                <div class="title-bar">
+                    <div class="title-bar-text">
+                        <svg width="14" height="14" viewBox="0 0 16 16" shape-rendering="crispEdges">
+                            <ellipse cx="8" cy="3" rx="6" ry="2" fill="#c0c0c0" stroke="#000"/>
+                            <path d="M2 3 V13 A6 2 0 0 0 14 13 V3" fill="#c0c0c0" stroke="#000"/>
+                            <path d="M2 7 A6 2 0 0 0 14 7 M2 10 A6 2 0 0 0 14 10" stroke="#000" fill="none"/>
+                        </svg>
+                        Turn2SQL — Excel &amp; CSV to SQL Converter
+                    </div>
+                    <div class="title-bar-controls">
+                        <button title="minimize">_</button>
+                        <button title="maximize">☐</button>
+                        <button title="close">✕</button>
+                    </div>
+                </div>
+
+                <div class="body-row">
+                    <!-- Left nav — templates -->
+                    <aside class="nav-pane">
+                        <div class="nav-header">
+                            <span>📁 Templates</span>
+                            <button class="w95 icon-btn" title="新增範本 (上傳檔案)" onclick="openUploadDialog({forceNew:true})" style="font-weight:bold">
+                                <svg width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
+                                    <rect x="5" y="1" width="2" height="10" fill="#008000"/>
+                                    <rect x="1" y="5" width="10" height="2" fill="#008000"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="nav-list" id="nav-list"></div>
+                        <div class="nav-footer">stored locally<br/>in browser</div>
+                    </aside>
+
+                    <!-- Right pane -->
+                    <main class="sheet-pane" id="sheet-root">
+                        {{template "content" .}}
+                    </main>
                 </div>
             </div>
-        </nav>
+        </div>
 
-        <!-- Sidebar Overlay -->
-        <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+        <!-- Modal host (dialogs rendered here) -->
+        <div id="modal-host"></div>
 
-        <div class="main-content" id="main-content">
-            <div class="container">
-                {{template "content" .}}
+        <!-- Tweaks panel -->
+        <div class="tweaks-panel window" id="tweaks-panel" style="display:none">
+            <div class="title-bar">
+                <div class="title-bar-text">🎨 Tweaks</div>
+                <div class="title-bar-controls"><button onclick="document.getElementById('tweaks-panel').style.display='none'">✕</button></div>
+            </div>
+            <div class="dialog-body">
+                <div class="row"><label>Desktop theme:</label></div>
+                <div class="row" style="flex-wrap:wrap;gap:3px">
+                    <button class="w95 small" onclick="setTheme('teal')"><span class="swatch" style="background:#008080"></span> Teal</button>
+                    <button class="w95 small" onclick="setTheme('navy')"><span class="swatch" style="background:#1a2e4a"></span> Navy</button>
+                </div>
+                <div class="row" style="flex-wrap:wrap;gap:3px">
+                    <button class="w95 small" onclick="setTheme('aubergine')"><span class="swatch" style="background:#4a2a4a"></span> Plum</button>
+                    <button class="w95 small" onclick="setTheme('olive')"><span class="swatch" style="background:#5a6b2a"></span> Olive</button>
+                </div>
+                <hr style="border:none;border-top:1px solid #808080;border-bottom:1px solid #fff;margin:8px 0"/>
+                <div class="row"><label>Font smoothing:</label>
+                    <input type="checkbox" class="w95" id="smooth-toggle" onchange="document.body.style.fontSmooth=this.checked?'auto':'never';document.body.style.webkitFontSmoothing=this.checked?'antialiased':'none'"/>
+                </div>
+                <div class="row"><label>Sample data:</label>
+                    <button class="w95 small" onclick="loadSample()">Load</button>
+                </div>
             </div>
         </div>
+
+        <!-- Persisted tweak defaults -->
+        <script>
+        const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+            "theme": "teal",
+            "fontSmoothing": false
+        }/*EDITMODE-END*/;
+        </script>
+
+        <!-- App scripts -->
+        <script src="/static/js/sql.js?v=4"></script>
+        <script src="/static/js/app.js?v=4"></script>
+        <script src="/static/js/dialogs.js?v=4"></script>
+
+        <script>
+            // ---------- theme + tweaks ----------
+            function setTheme(name) {
+                document.body.className = 'theme-' + name;
+                try {
+                    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { theme: name } }, '*');
+                } catch {}
+            }
+            window.setTheme = setTheme;
+
+            // Tweak mode host protocol — register listener FIRST
+            window.addEventListener('message', (e) => {
+                if (!e.data) return;
+                if (e.data.type === '__activate_edit_mode')   document.getElementById('tweaks-panel').style.display = 'block';
+                if (e.data.type === '__deactivate_edit_mode') document.getElementById('tweaks-panel').style.display = 'none';
+            });
+            try { window.parent.postMessage({ type: '__edit_mode_available' }, '*'); } catch {}
+
+            // ---------- sample data ----------
+            function loadSample() {
+                const rows = [
+                    ['id', 'name', 'email', 'joined', 'active', 'balance'],
+                    ['1', '王小明', 'ming@example.com', '2024-01-15', 'true', '1234.56'],
+                    ['2', '陳美麗', 'mei@example.com',  '2024-03-22', 'true', '890.00'],
+                    ['3', 'Alice',  'alice@demo.io',    '2023-11-08', 'false','0.00'],
+                    ['4', 'Bob',    'bob@demo.io',      '2024-05-01', 'true', '5678.9'],
+                    ['5', 'Carol',  'carol@demo.io',    '2024-07-19', 'true', '120.25'],
+                ];
+                createTemplateFromData('sample_users.csv', rows, 0);
+            }
+            window.loadSample = loadSample;
+
+            // ---------- boot ----------
+            function boot() {
+                loadTemplates();
+                loadUI();
+                if (App.templates.length === 0) {
+                    renderNav();
+                    renderSheet();
+                    openUploadDialog();
+                } else {
+                    if (!App.activeId || !App.templates.find(t => t.id === App.activeId)) {
+                        App.activeId = App.templates[0].id;
+                        saveUI();
+                    }
+                    renderNav();
+                    renderSheet();
+                }
+            }
+            boot();
+
+            // Escape closes modal
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape') closeModal();
+            });
+            // Delete/Backspace: delete selected rows/cols/cells
+            document.addEventListener('keydown', e => {
+                if (typeof handleKeyDelete === 'function') handleKeyDelete(e);
+            });
+        </script>
     </body>
 </html>
 {{end}}
