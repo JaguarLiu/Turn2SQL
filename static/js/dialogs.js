@@ -278,54 +278,63 @@ function renderAccountDialog() {
       <div class="title-bar-controls"><button onclick="closeModal()">✕</button></div>
     </div>`;
 
+  const bodyStyle = 'text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 20px';
+  const footerStyle = 'justify-content:center;gap:6px';
+  const fieldStyle = 'display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;max-width:280px';
+  const inputStyle = 'width:100%;text-align:center';
+
   let body = '';
   if (s.user) {
     body = `
-      <div class="dialog-body">
-        <p style="margin:0 0 8px"><b>已登入:</b> ${escapeHtml(s.user.email)}</p>
-        <p style="margin:0 0 12px;font-size:11px;color:#404040">範本會自動同步到你的帳號,所有登入此帳號的裝置都會看到。</p>
-        <div class="row"><button class="w95" onclick="accountLogout()">登出</button></div>
+      <div class="dialog-body" style="${bodyStyle}">
+        <div style="font-size:12px">已登入</div>
+        <div style="font-weight:bold;font-size:13px;word-break:break-all">${escapeHtml(s.user.email)}</div>
+        <div style="font-size:11px;color:#404040;max-width:300px">範本會自動同步到你的帳號,所有登入此帳號的裝置都會看到。</div>
+        <button class="w95" onclick="accountLogout()" style="min-width:120px">登出</button>
       </div>`;
   } else if (AccountState.step === 1) {
     body = `
-      <div class="dialog-body">
-        <p style="margin:0 0 8px;font-size:11px;color:#404040">請輸入 Email 以登入或註冊。</p>
-        <div class="row">
-          <label style="width:70px">Account:</label>
+      <div class="dialog-body" style="${bodyStyle}">
+        <div style="font-size:11px;color:#404040">請輸入 Email 以登入或註冊</div>
+        <div style="${fieldStyle}">
+          <label style="font-size:11px;color:#404040">Account</label>
           <input class="w95" id="auth-email" type="email" autocomplete="username"
                  value="${escapeAttr(AccountState.email)}"
-                 style="flex:1" onkeydown="if(event.key==='Enter')accountCheckEmail()" autofocus>
+                 style="${inputStyle}" onkeydown="if(event.key==='Enter')accountCheckEmail()" autofocus>
         </div>
       </div>
-      <div class="dialog-footer">
-        <button class="w95" onclick="closeModal()">Cancel</button>
-        <button class="w95" onclick="accountCheckEmail()" style="font-weight:bold">Next →</button>
+      <div class="dialog-footer" style="${footerStyle}">
+        <button class="w95" onclick="closeModal()" style="min-width:80px">Cancel</button>
+        <button class="w95" onclick="accountCheckEmail()" style="font-weight:bold;min-width:80px">Next →</button>
       </div>`;
   } else {
     const isLogin = AccountState.exists === true;
     body = `
-      <div class="dialog-body">
-        <div class="row">
-          <label style="width:70px">Account:</label>
-          <input class="w95" type="email" readonly value="${escapeAttr(AccountState.email)}" style="flex:1;background:#e0e0e0">
-          <button class="w95 small" title="變更 Email" onclick="accountBackToStep1()">←</button>
+      <div class="dialog-body" style="${bodyStyle}">
+        <div style="${fieldStyle}">
+          <label style="font-size:11px;color:#404040">Account</label>
+          <div style="display:flex;gap:4px;width:100%">
+            <input class="w95" type="email" readonly value="${escapeAttr(AccountState.email)}"
+                   style="flex:1;text-align:center;background:#e0e0e0">
+            <button class="w95 small" title="變更 Email" onclick="accountBackToStep1()">←</button>
+          </div>
         </div>
         ${isLogin
-          ? `<p style="margin:8px 0 6px;font-size:11px;color:#006400">✓ 此帳號已存在,請輸入密碼登入。</p>`
-          : `<p style="margin:8px 0 6px;font-size:11px;color:#804000">此帳號尚未註冊。填寫密碼即可建立新帳號(目前的本地範本會自動上傳)。</p>`}
-        <div class="row">
-          <label style="width:70px">Password:</label>
+          ? `<div style="font-size:11px;color:#006400">✓ 此帳號已存在,請輸入密碼登入</div>`
+          : `<div style="font-size:11px;color:#804000;max-width:300px">此帳號尚未註冊。填寫密碼即可建立新帳號(目前的本地範本會自動上傳)</div>`}
+        <div style="${fieldStyle}">
+          <label style="font-size:11px;color:#404040">Password</label>
           <input class="w95" id="auth-pass" type="password"
                  autocomplete="${isLogin ? 'current-password' : 'new-password'}"
                  placeholder="${isLogin ? '' : '至少 8 字元'}"
-                 style="flex:1" onkeydown="if(event.key==='Enter')${isLogin?'accountLogin()':'accountRegister()'}" autofocus>
+                 style="${inputStyle}" onkeydown="if(event.key==='Enter')${isLogin?'accountLogin()':'accountRegister()'}" autofocus>
         </div>
       </div>
-      <div class="dialog-footer">
-        <button class="w95" onclick="accountBackToStep1()">← Back</button>
+      <div class="dialog-footer" style="${footerStyle}">
+        <button class="w95" onclick="accountBackToStep1()" style="min-width:80px">← Back</button>
         ${isLogin
-          ? `<button class="w95" onclick="accountLogin()" style="font-weight:bold">Login</button>`
-          : `<button class="w95" onclick="accountRegister()" style="font-weight:bold">Register</button>`}
+          ? `<button class="w95" onclick="accountLogin()" style="font-weight:bold;min-width:80px">Login</button>`
+          : `<button class="w95" onclick="accountRegister()" style="font-weight:bold;min-width:80px">Register</button>`}
       </div>`;
   }
 

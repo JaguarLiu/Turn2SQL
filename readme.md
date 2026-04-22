@@ -8,60 +8,15 @@ A Go web application for uploading Excel/CSV files and converting them to SQL st
 
 - Upload Excel (`.xlsx`/`.xls`) or CSV files via drag-and-drop or file picker
 - Client-side parsing with SheetJS — no round-trip needed for preview
-- Pick header row, rename/retype columns, edit cells inline
+- Pick header row, rename/retype columns, edit cells inline (debounced persistence — no full re-render on each keystroke)
 - Generate SQL for MySQL, PostgreSQL, SQL Server, SQLite, ANSI SQL
+- Output modes: **CREATE**, **INSERT**, **UPDATE** (pick WHERE columns via a listbox dialog — at least one required), **CREATE & INSERT**
 - **Cross-device sync:**
-  - Anonymous **Sync Code** (10-char lowercase token) — share between your own devices, no signup
-  - **Account login** (email + password) — workspace auto-bound to account; works across any logged-in browser
-  - **Claim flow** — convert an anonymous workspace into an account-owned one (templates merged in)
+  - Anonymous **Sync Code** (10-char token) — `🔗 Share` toolbar button shows the code + a shareable URL (`/sync/{code}`) with copy buttons
+  - **`📥 Import`** toolbar button — paste a sync code to adopt a workspace; when logged in it merges the remote workspace into your account (claim) and deletes the anonymous source
+  - **Account login** (stepped dialog) — enter email, backend checks existence, then either asks for password (existing) or lets you register inline (new). Workspace auto-bound to the account across any logged-in browser
 - Offline-first: all edits save locally first, queued for background sync, retry on reconnect
 - Theming (Teal / Navy / Plum / Olive), font-smoothing toggle, sample-data loader
-
-## Tech Stack
-
-- **Backend**: Go + Gin
-- **Database**: SQLite via `modernc.org/sqlite` (pure Go, no CGO — single-binary deploy)
-- **Auth**: bcrypt password hashing, HttpOnly session cookie (30-day), server-side session table
-- **Templates**: Go standard `html/template`
-- **Excel/CSV (client)**: SheetJS (`xlsx.full.min.js`, served locally)
-- **UI**: Vanilla JS, no build step. Classic scripts loaded in order
-- **Styling**: Custom Windows 95 aesthetic (`win95.css`), fonts served locally
-
-## Project Structure
-
-```
-turn2sql/
-├── main.go                    # DB init, routes, middleware registration
-├── go.mod / go.sum
-├── handlers/
-│   ├── index.go               # Shell page renderer
-│   ├── auth.go                # Register / login / logout / me
-│   └── sync.go                # Workspace + template CRUD
-├── middleware/
-│   └── auth.go                # CurrentUser, RequireWorkspace, RequireUser
-├── models/
-│   ├── db.go                  # SQLite open + migrations (WAL, FK on)
-│   ├── user.go                # bcrypt user CRUD
-│   ├── session.go             # Session tokens
-│   └── workspace.go           # Workspace + template CRUD, claim, optimistic lock
-├── templates/
-│   ├── render.go              # Template init
-│   ├── layout.html            # Win95 shell + boot script
-│   └── index.html             # Loading placeholder (overwritten by client boot)
-├── static/
-│   ├── css/
-│   │   └── win95.css
-│   ├── fonts/
-│   │   ├── ms_sans_serif.woff2
-│   │   └── ms_sans_serif_bold.woff2
-│   └── js/
-│       ├── xlsx.full.min.js   # SheetJS (local)
-│       ├── sql.js             # SQL generation
-│       ├── app.js             # App state, localStorage, rendering
-│       ├── sync.js            # Sync module (pull/push/auth)
-│       └── dialogs.js         # Modals (upload / field / account / ...)
-└── data.db                    # SQLite DB (created on first run, gitignored)
-```
 
 ## Prerequisites
 
@@ -82,60 +37,26 @@ Visit `http://localhost:8000`. SQLite database (`data.db`) is created automatica
 
 ### Basic editing
 
-1. Open the site — an upload dialog opens automatically if there are no saved templates.
-2. Drop or choose an Excel/CSV file; pick the header row.
-3. Edit columns, types, and cells directly in the sheet.
-4. Use the SQL preview dialog to copy generated DDL/DML for your chosen dialect.
+1. Open the site — an upload dialog opens automatically if there are no saved templates
+2. Drop or choose an Excel/CSV file; pick the header row
+3. Edit columns, types, and cells directly in the sheet
+4. Pick an output mode; for **UPDATE**, a dialog opens asking which columns form the `WHERE` condition
+5. Use **Preview SQL** or **Convert & Download .sql** to export
 
 ### Cross-device sync
 
-Click the 👤 button in the title bar to open the Account dialog.
+**Share (generate / copy a sync code):** click **🔗 Share** in the toolbar → dialog shows the current sync code and a shareable URL like `http://host/sync/{code}`, each with a Copy button. If none yet, the dialog offers an inline *產生 Sync Code* button.
 
-**Anonymous sync (no signup):**
-- `🔗 Sync Code` tab → **產生新的 Sync Code** → copy the code
-- On another device, same dialog → **Use code** → paste → all templates sync
+**Import (adopt someone else's code, or a code from another device):** click **📥 Import** in the toolbar → paste the code.
+- When **logged in** → merges that workspace's templates into your account (claim), source is deleted
+- When **anonymous** → switches your local client to sync against that workspace
 
-**Account-based sync:**
-- `Register` tab → email + password (≥ 8 chars) → current local templates auto-upload
-- Login on any other browser with the same credentials to see the same workspace
+**Shareable URL:** opening `http://host/sync/{code}` in a new browser automatically adopts the code (the URL is cleaned from the address bar; skipped if you're already logged in).
 
-**Migrating from anonymous to account:**
-- Generate a sync code on device A, register/login on device B with the same email
-- On device B's Account dialog, click **認領 Sync Code 到此帳號**, enter the code
-- Templates from the anonymous workspace are merged into your account's workspace
-
-## API Reference
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/api/auth/register` | — | Create account, auto-login |
-| POST | `/api/auth/login` | — | Login, set session cookie |
-| POST | `/api/auth/logout` | cookie | Revoke session |
-| GET  | `/api/auth/me` | — | Current auth state |
-| POST | `/api/workspace/anon` | — | Create new anonymous workspace + sync code |
-| POST | `/api/workspace/claim` | user | Claim sync code into account (merges templates) |
-| GET  | `/api/workspace` | user or `X-Sync-Code` | Current workspace info |
-| GET  | `/api/templates` | user or `X-Sync-Code` | List templates |
-| PUT  | `/api/templates/:id` | user or `X-Sync-Code` | Upsert (409 on stale `updatedAt`) |
-| DELETE | `/api/templates/:id` | user or `X-Sync-Code` | Delete |
-
-Sync code workspaces pass `X-Sync-Code: <code>` header. Logged-in requests use the `t2s_session` HttpOnly cookie.
-
-## Architecture Notes
-
-- **Client-side first.** SheetJS parses files, `app.js` manages `App` state, `sql.js` generates SQL. Nothing hits the server in the core flow.
-- **Sync is opt-in.** No code / no login = purely local (`localStorage` only). Enabling either triggers an initial pull + ongoing background push.
-- **Optimistic updates.** Mutations write to `localStorage` first; `Sync.markDirty(id)` debounces 600ms, then flushes. Offline writes queue and retry on reconnect.
-- **Optimistic locking.** Each template carries `updatedAt`; the server rejects writes older than the stored value with `409 Conflict`.
-- **One workspace per user.** Enforced by a partial unique index on `workspaces.owner_user_id`. Anonymous workspaces (NULL owner) can be created freely.
-
-## Security Notes
-
-- Passwords hashed with bcrypt (default cost). Min 8 chars enforced.
-- Session cookies are `HttpOnly`, `SameSite=Lax`. `Secure` is **not** set — enable it behind TLS in production.
-- Sync codes are not authentication — they are bearer capabilities. Anyone with the code can read/write that workspace. Treat like a Google Docs share link.
-- No email verification or password reset flow yet.
-- CSRF: state-changing endpoints accept JSON; rely on `SameSite=Lax` cookie for basic CSRF protection. Add a token if exposing cross-origin.
+**Account:** click the 👤 button in the template nav pane.
+1. Enter your email → **Next →**
+2. Backend reports whether the account exists
+3. Enter password and hit **Login** (existing) or **Register** (new). On register, current local templates upload to the new account automatically
 
 ## Building for Production
 
