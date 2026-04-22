@@ -1,0 +1,16 @@
+services:
+  turn2sql:
+    build: .
+    image: turn2sql:latest
+    container_name: turn2sql
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - turn2sql-data:/app/data
+    environment:
+      DATABASE_PATH: /app/data/data.db
+      GIN_MODE: release
+
+volumes:
+  turn2sql-data:

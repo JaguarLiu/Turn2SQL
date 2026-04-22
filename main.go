@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 	"turn2sql/handlers"
 	"turn2sql/middleware"
 	"turn2sql/models"
@@ -11,7 +12,11 @@ import (
 )
 
 func main() {
-	if err := models.InitDB("./data.db"); err != nil {
+	dbPath := os.Getenv("DATABASE_PATH")
+	if dbPath == "" {
+		dbPath = "./data.db"
+	}
+	if err := models.InitDB(dbPath); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 

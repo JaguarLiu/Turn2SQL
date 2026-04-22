@@ -60,11 +60,37 @@ Visit `http://localhost:8000`. SQLite database (`data.db`) is created automatica
 
 ## Building for Production
 
+### Plain Go binary
+
 ```bash
 go build -o turn2sql
 ```
 
-Deploy the binary alongside `templates/` and `static/`. `data.db` is created in the working directory on first run — mount it on a persistent volume.
+Deploy the binary alongside `templates/` and `static/`. `data.db` is created in the working directory on first run (or wherever `DATABASE_PATH` points) — mount it on a persistent volume.
+
+### Docker / Docker Compose
+
+```bash
+docker compose up -d --build
+# → http://localhost:8000
+```
+
+- Image is built via a multi-stage `Dockerfile` (pure-Go SQLite, no CGO)
+- Data is persisted in the named volume `turn2sql-data` mounted at `/app/data` (`DATABASE_PATH=/app/data/data.db`)
+- To use a host directory instead of a named volume, replace the `volumes:` entry in `docker-compose.yml` with `- ./data:/app/data`
+- Tail logs / stop:
+  ```bash
+  docker compose logs -f
+  docker compose down         # keeps the data volume
+  docker compose down -v      # also removes the data volume (destructive)
+  ```
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_PATH` | `./data.db` | SQLite file path |
+| `GIN_MODE` | `debug` | Set to `release` in production |
 
 ## License
 

@@ -60,11 +60,37 @@ go run main.go
 
 ## Production 建置
 
+### 直接編譯 Go binary
+
 ```bash
 go build -o turn2sql
 ```
 
-將執行檔與 `templates/`、`static/` 一起部署。`data.db` 會於工作目錄首次執行時建立 — 請掛載到持久化 volume。
+將執行檔與 `templates/`、`static/` 一起部署。`data.db` 會於工作目錄首次執行時建立（或依 `DATABASE_PATH` 指定的位置）— 請掛載到持久化 volume。
+
+### Docker / Docker Compose
+
+```bash
+docker compose up -d --build
+# → http://localhost:8000
+```
+
+- 使用 multi-stage `Dockerfile` 建置（純 Go SQLite,不需 CGO）
+- 資料持久化在命名 volume `turn2sql-data`,掛載到 `/app/data`(`DATABASE_PATH=/app/data/data.db`)
+- 若想改成 host 目錄掛載(方便備份),將 `docker-compose.yml` 的 `volumes:` 改為 `- ./data:/app/data`
+- 看 log / 停止:
+  ```bash
+  docker compose logs -f
+  docker compose down         # 保留 data volume
+  docker compose down -v      # 同時移除 data volume(會清空資料)
+  ```
+
+### 環境變數
+
+| 變數 | 預設 | 說明 |
+|---|---|---|
+| `DATABASE_PATH` | `./data.db` | SQLite 檔案路徑 |
+| `GIN_MODE` | `debug` | 上線時設為 `release` |
 
 ## 授權
 

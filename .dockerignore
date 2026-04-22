@@ -1,0 +1,22 @@
+.git
+.gitignore
+.github
+.idea
+.vscode
+.claude
+.dockerignore
+Dockerfile
+docker-compose.yml
+README*.md
+readme.md
+LICENSE
+*.log
+# Local build artifacts
+turn
+turn2sql
+# Local DB — never ship into the image
+data.db
+data.db-*
+# Editor / OS detritus
+.DS_Store
+Thumbs.db
