@@ -25,6 +25,22 @@ func clearSessionCookie(c *gin.Context) {
 	c.SetCookie(middleware.SessionCookie, "", -1, "/", "", false, true)
 }
 
+// CheckEmail reports whether an account with the given email already exists.
+// Used by the login flow to decide between "ask password" and "show register".
+func CheckEmail(c *gin.Context) {
+	var b authBody
+	if err := c.ShouldBindJSON(&b); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
+		return
+	}
+	exists, err := models.EmailExists(b.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "lookup failed"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"exists": exists})
+}
+
 // Register creates a new account and logs in.
 func Register(c *gin.Context) {
 	var b authBody

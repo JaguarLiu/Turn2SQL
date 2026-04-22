@@ -25,10 +25,12 @@ func main() {
 
 	// Pages
 	router.GET("/", handlers.IndexHandler)
+	router.GET("/sync/:code", handlers.IndexHandler)
 
 	// Auth API
 	auth := router.Group("/api/auth")
 	{
+		auth.POST("/check", handlers.CheckEmail)
 		auth.POST("/register", handlers.Register)
 		auth.POST("/login", handlers.Login)
 		auth.POST("/logout", handlers.Logout)

@@ -48,6 +48,11 @@ const Sync = (() => {
     } catch { state.user = null; }
   }
 
+  async function checkEmail(email) {
+    const r = await req('POST', '/api/auth/check', { email });
+    return !!(r && r.exists);
+  }
+
   async function register(email, password) {
     const u = await req('POST', '/api/auth/register', { email, password });
     state.user = { id: u.id, email: u.email };
@@ -246,7 +251,7 @@ const Sync = (() => {
 
   return {
     init, status, refreshMe,
-    register, login, logout, claimSyncCode,
+    checkEmail, register, login, logout, claimSyncCode,
     createSyncCode, useSyncCode, clearSyncCode, currentCode,
     pull, markDirty, markDeleted, flushPending,
     showToast,

@@ -63,6 +63,22 @@ func AuthenticateUser(email, password string) (*User, error) {
 	return &u, nil
 }
 
+func EmailExists(email string) (bool, error) {
+	email = strings.TrimSpace(strings.ToLower(email))
+	if email == "" {
+		return false, nil
+	}
+	var id int64
+	err := DB.QueryRow(`SELECT id FROM users WHERE email = ?`, email).Scan(&id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 func GetUserByID(id int64) (*User, error) {
 	row := DB.QueryRow(`SELECT id, email, created_at FROM users WHERE id = ?`, id)
 	var u User

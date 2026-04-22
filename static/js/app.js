@@ -113,6 +113,24 @@ function renderSheet() {
         <button class="w95 small" onclick="openWhereDialog()">編輯...</button>
       </div>` : ''}
       <div class="spacer"></div>
+      <button class="w95" title="分享 Sync Code" onclick="openShareDialog()">
+        <svg width="14" height="14" viewBox="0 0 16 16" shape-rendering="crispEdges" style="vertical-align:-3px">
+          <circle cx="4" cy="8" r="2" fill="#c0c0c0" stroke="#000"/>
+          <circle cx="12" cy="3" r="2" fill="#c0c0c0" stroke="#000"/>
+          <circle cx="12" cy="13" r="2" fill="#c0c0c0" stroke="#000"/>
+          <line x1="5" y1="7" x2="11" y2="4" stroke="#000"/>
+          <line x1="5" y1="9" x2="11" y2="12" stroke="#000"/>
+        </svg>
+        Share
+      </button>
+      <button class="w95" title="從 Sync Code 匯入範本" onclick="openImportDialog()">
+        <svg width="14" height="14" viewBox="0 0 16 16" shape-rendering="crispEdges" style="vertical-align:-3px">
+          <polygon points="8,1 8,10" stroke="#000" fill="none"/>
+          <polygon points="4,6 8,10 12,6" fill="#000080" stroke="#000"/>
+          <rect x="2" y="12" width="12" height="2" fill="#c0c0c0" stroke="#000"/>
+        </svg>
+        Import
+      </button>
       <button class="w95" onclick="previewSQL()">
         <svg width="14" height="14" viewBox="0 0 16 16" shape-rendering="crispEdges" style="vertical-align:-3px;margin-right:3px">
           <ellipse cx="8" cy="3" rx="6" ry="2" fill="#c0c0c0" stroke="#000"/>
@@ -571,6 +589,16 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 window.escapeHtml = escapeHtml; window.escapeAttr = escapeAttr;
+
+function copyToClipboard(text, btn) {
+  try { navigator.clipboard.writeText(text); } catch {}
+  if (btn) {
+    const orig = btn.textContent;
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = orig; }, 1200);
+  }
+}
+window.copyToClipboard = copyToClipboard;
 
 window.addEventListener('beforeunload', () => {
   if (_cellPersistTimer) {
