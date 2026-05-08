@@ -25,26 +25,12 @@ func main() {
 	// Static files
 	router.Use(static.Serve("/static", static.LocalFile("./static", false)))
 
-	// Attach current user (if any) to every request
-	router.Use(middleware.CurrentUser)
-
 	// Pages
 	router.GET("/", handlers.IndexHandler)
 	router.GET("/sync/:code", handlers.IndexHandler)
 
-	// Auth API
-	auth := router.Group("/api/auth")
-	{
-		auth.POST("/check", handlers.CheckEmail)
-		auth.POST("/register", handlers.Register)
-		auth.POST("/login", handlers.Login)
-		auth.POST("/logout", handlers.Logout)
-		auth.GET("/me", handlers.Me)
-	}
-
-	// Workspace — anon create is public; claim requires login
+	// Workspace — anon create is public
 	router.POST("/api/workspace/anon", handlers.CreateAnonymousWorkspace)
-	router.POST("/api/workspace/claim", middleware.RequireUser, handlers.ClaimWorkspace)
 	router.GET("/api/workspace", middleware.RequireWorkspace, handlers.GetWorkspace)
 
 	// Template sync

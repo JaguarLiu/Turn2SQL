@@ -2,7 +2,7 @@
 
 # Turn2SQL
 
-一個 Go 撰寫的 Web 應用程式，用於上傳 Excel／CSV 檔案並轉換成多種類型的 SQL 敘述。前端是 Windows 95 復古風格的介面，在瀏覽器端解析試算表並直接產生 SQL DDL／DML。範本可透過匿名 **Sync Code** 或 **註冊帳號** 在多台裝置間同步。
+一個 Go 撰寫的 Web 應用程式，用於上傳 Excel／CSV 檔案並轉換成多種類型的 SQL 敘述。前端是 Windows 95 復古風格的介面，在瀏覽器端解析試算表並直接產生 SQL DDL／DML。範本可透過匿名 **Sync Code** 在多台裝置間同步。
 
 ## 功能特色
 
@@ -11,10 +11,9 @@
 - 指定標題列、重新命名／變更欄位型別、就地編輯儲存格（debounce 持久化 — 編輯過程不會重繪整張表）
 - 支援 MySQL、PostgreSQL、SQL Server、SQLite、ANSI SQL 的 SQL 產生
 - 輸出模式：**CREATE**、**INSERT**、**UPDATE**（透過 listbox 對話框挑選 WHERE 欄位，至少一個）、**CREATE & INSERT**
-- **跨裝置同步：**
+- **跨裝置同步（Sync Code）：**
   - 匿名 **Sync Code**（10 字元 token）— Toolbar 的 **🔗 Share** 按鈕彈出對話框顯示 Code 與可分享 URL（`/sync/{code}`），各帶 Copy 按鈕
-  - **📥 Import** 按鈕 — 貼上 Sync Code 匯入工作區；已登入時會將該工作區合併到帳號（claim）並刪除匿名來源
-  - **帳號登入**（分步對話框）— 輸入 email 後後端檢查是否存在，存在則要求密碼，不存在則直接提供註冊。登入後工作區自動綁定帳號，任何登入瀏覽器皆可同步
+  - **📥 Import** 按鈕 — 在另一台裝置貼上 Sync Code,即可連到同一個工作區;範本會與本機現有範本合併
 - 離線優先：所有編輯先寫入本地，背景排入同步佇列，連線恢復自動重試
 - 主題配色（Teal／Navy／Plum／Olive）、字體平滑切換、範例資料載入
 
@@ -47,16 +46,9 @@ go run main.go
 
 **Share（產生／複製 Sync Code）：** 點 Toolbar 的 **🔗 Share** → 對話框顯示目前 Sync Code 與可分享 URL（例如 `http://host/sync/{code}`），各自有 Copy 按鈕。若尚未產生，對話框會提供行內的「產生 Sync Code」按鈕。
 
-**Import（匯入他人的 Sync Code，或從其他裝置帶回的 Code）：** 點 Toolbar 的 **📥 Import** → 貼上 Code。
-- 已登入 → 把該工作區的範本合併到你的帳號（claim），來源匿名工作區會刪除
-- 未登入 → 切換本機為該 Code 的匿名工作區
+**Import（匯入其他裝置的 Sync Code）：** 點 Toolbar 的 **📥 Import** → 貼上 Code 即可切換本機到該工作區,範本會與本機現有範本合併。
 
-**分享連結：** 在新瀏覽器開啟 `http://host/sync/{code}` 會自動套用該 Code（網址會被清除；若已登入則略過）。
-
-**帳號登入：** 點選左側範本列表上方的 👤 按鈕。
-1. 輸入 email → **Next →**
-2. 後端回報該帳號是否存在
-3. 輸入密碼後按 **Login**（已存在）或 **Register**（新帳號）。註冊時目前的本地範本會自動上傳到新帳號
+**分享連結：** 在新瀏覽器開啟 `http://host/sync/{code}` 會自動套用該 Code（網址會被清除）。
 
 ## Production 建置
 

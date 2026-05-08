@@ -11,10 +11,9 @@ import (
 )
 
 type Workspace struct {
-	ID          int64
-	OwnerUserID *int64
-	SyncCode    string
-	CreatedAt   time.Time
+	ID        int64
+	SyncCode  string
+	CreatedAt time.Time
 }
 
 type Template struct {
@@ -27,8 +26,6 @@ type Template struct {
 
 var (
 	ErrWorkspaceNotFound = errors.New("workspace not found")
-	ErrAlreadyClaimed    = errors.New("workspace already claimed by an account")
-	ErrUserHasWorkspace  = errors.New("user already has a workspace")
 	ErrStaleUpdate       = errors.New("template was updated elsewhere")
 )
 
@@ -45,7 +42,7 @@ func genSyncCode() (string, error) {
 	return enc, nil
 }
 
-// CreateAnonymousWorkspace makes a new workspace with no owner.
+// CreateAnonymousWorkspace makes a new workspace.
 func CreateAnonymousWorkspace() (*Workspace, error) {
 	for range 5 {
 		code, err := genSyncCode()
@@ -65,101 +62,18 @@ func CreateAnonymousWorkspace() (*Workspace, error) {
 	return nil, errors.New("failed to generate unique sync code")
 }
 
-// GetOrCreateUserWorkspace returns the workspace owned by user, creating if absent.
-func GetOrCreateUserWorkspace(userID int64) (*Workspace, error) {
-	row := DB.QueryRow(`SELECT id, owner_user_id, sync_code, created_at FROM workspaces WHERE owner_user_id = ?`, userID)
-	var w Workspace
-	var owner sql.NullInt64
-	err := row.Scan(&w.ID, &owner, &w.SyncCode, &w.CreatedAt)
-	if err == nil {
-		if owner.Valid {
-			w.OwnerUserID = &owner.Int64
-		}
-		return &w, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
-	}
-	// create
-	for range 5 {
-		code, err := genSyncCode()
-		if err != nil {
-			return nil, err
-		}
-		res, err := DB.Exec(`INSERT INTO workspaces (owner_user_id, sync_code) VALUES (?, ?)`, userID, code)
-		if err != nil {
-			if strings.Contains(err.Error(), "UNIQUE") {
-				continue
-			}
-			return nil, err
-		}
-		id, _ := res.LastInsertId()
-		return &Workspace{ID: id, OwnerUserID: &userID, SyncCode: code, CreatedAt: time.Now()}, nil
-	}
-	return nil, errors.New("failed to create workspace")
-}
-
 // GetWorkspaceBySyncCode looks up a workspace by code.
 func GetWorkspaceBySyncCode(code string) (*Workspace, error) {
 	code = strings.ToLower(strings.TrimSpace(code))
-	row := DB.QueryRow(`SELECT id, owner_user_id, sync_code, created_at FROM workspaces WHERE sync_code = ?`, code)
+	row := DB.QueryRow(`SELECT id, sync_code, created_at FROM workspaces WHERE sync_code = ?`, code)
 	var w Workspace
-	var owner sql.NullInt64
-	if err := row.Scan(&w.ID, &owner, &w.SyncCode, &w.CreatedAt); err != nil {
+	if err := row.Scan(&w.ID, &w.SyncCode, &w.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrWorkspaceNotFound
 		}
 		return nil, err
 	}
-	if owner.Valid {
-		w.OwnerUserID = &owner.Int64
-	}
 	return &w, nil
-}
-
-// ClaimWorkspace binds an anonymous workspace to a user.
-// If user already has a workspace, their existing templates are merged in and the old workspace deleted.
-func ClaimWorkspace(userID int64, syncCode string) (*Workspace, error) {
-	target, err := GetWorkspaceBySyncCode(syncCode)
-	if err != nil {
-		return nil, err
-	}
-	if target.OwnerUserID != nil {
-		if *target.OwnerUserID == userID {
-			return target, nil
-		}
-		return nil, ErrAlreadyClaimed
-	}
-
-	tx, err := DB.Begin()
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
-
-	// If user already has a workspace, move its templates into target, then delete old.
-	var existingID int64
-	err = tx.QueryRow(`SELECT id FROM workspaces WHERE owner_user_id = ?`, userID).Scan(&existingID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
-	}
-	if existingID != 0 {
-		if _, err := tx.Exec(`UPDATE templates SET workspace_id = ? WHERE workspace_id = ?`, target.ID, existingID); err != nil {
-			return nil, err
-		}
-		if _, err := tx.Exec(`DELETE FROM workspaces WHERE id = ?`, existingID); err != nil {
-			return nil, err
-		}
-	}
-
-	if _, err := tx.Exec(`UPDATE workspaces SET owner_user_id = ? WHERE id = ?`, userID, target.ID); err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	target.OwnerUserID = &userID
-	return target, nil
 }
 
 // ListTemplates returns all templates for a workspace, newest first.

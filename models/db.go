@@ -10,23 +10,11 @@ import (
 var DB *sql.DB
 
 const schema = `
-CREATE TABLE IF NOT EXISTS users (
-	id            INTEGER PRIMARY KEY AUTOINCREMENT,
-	email         TEXT NOT NULL UNIQUE,
-	password_hash TEXT NOT NULL,
-	created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS workspaces (
-	id            INTEGER PRIMARY KEY AUTOINCREMENT,
-	owner_user_id INTEGER,
-	sync_code     TEXT NOT NULL UNIQUE,
-	created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (owner_user_id) REFERENCES users(id) ON DELETE CASCADE
+	id         INTEGER PRIMARY KEY AUTOINCREMENT,
+	sync_code  TEXT NOT NULL UNIQUE,
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_workspaces_owner
-	ON workspaces(owner_user_id)
-	WHERE owner_user_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS templates (
 	id           TEXT PRIMARY KEY,
@@ -37,15 +25,6 @@ CREATE TABLE IF NOT EXISTS templates (
 	FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_templates_workspace ON templates(workspace_id);
-
-CREATE TABLE IF NOT EXISTS sessions (
-	id         TEXT PRIMARY KEY,
-	user_id    INTEGER NOT NULL,
-	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	expires_at DATETIME NOT NULL,
-	FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
 `
 
 // InitDB opens the SQLite database and runs schema migration.

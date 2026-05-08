@@ -1,4 +1,4 @@
-// Dialogs — upload, field edit, confirm, SQL preview
+// Dialogs — upload, field edit, confirm, SQL preview, share, import, WHERE-cols
 
 // ----- upload dialog -----
 function openUploadDialog({ forceNew = false } = {}) {
@@ -256,147 +256,6 @@ function openAlert(msg) {
 }
 function closeModal() { document.getElementById('modal-host').innerHTML = ''; }
 
-// ---------- Account dialog ----------
-// Stepped login flow:
-//   step 1 → email input
-//   step 2 → password (login if email exists, register if not)
-const AccountState = { step: 1, email: '', exists: null };
-
-function openAccountDialog() {
-  AccountState.step = 1;
-  AccountState.email = '';
-  AccountState.exists = null;
-  renderAccountDialog();
-}
-
-function renderAccountDialog() {
-  const host = document.getElementById('modal-host');
-  const s = Sync.status();
-  const header = (title) => `
-    <div class="title-bar">
-      <div class="title-bar-text">👤 ${title}</div>
-      <div class="title-bar-controls"><button onclick="closeModal()">✕</button></div>
-    </div>`;
-
-  const bodyStyle = 'text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 20px';
-  const footerStyle = 'justify-content:center;gap:6px';
-  const fieldStyle = 'display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;max-width:280px';
-  const inputStyle = 'width:100%;text-align:center';
-
-  let body = '';
-  if (s.user) {
-    body = `
-      <div class="dialog-body" style="${bodyStyle}">
-        <div style="font-size:12px">已登入</div>
-        <div style="font-weight:bold;font-size:13px;word-break:break-all">${escapeHtml(s.user.email)}</div>
-        <div style="font-size:11px;color:#404040;max-width:300px">範本會自動同步到你的帳號,所有登入此帳號的裝置都會看到。</div>
-        <button class="w95" onclick="accountLogout()" style="min-width:120px">登出</button>
-      </div>`;
-  } else if (AccountState.step === 1) {
-    body = `
-      <div class="dialog-body" style="${bodyStyle}">
-        <div style="font-size:11px;color:#404040">請輸入 Email 以登入或註冊</div>
-        <div style="${fieldStyle}">
-          <label style="font-size:11px;color:#404040">Account</label>
-          <input class="w95" id="auth-email" type="email" autocomplete="username"
-                 value="${escapeAttr(AccountState.email)}"
-                 style="${inputStyle}" onkeydown="if(event.key==='Enter')accountCheckEmail()" autofocus>
-        </div>
-      </div>
-      <div class="dialog-footer" style="${footerStyle}">
-        <button class="w95" onclick="closeModal()" style="min-width:80px">Cancel</button>
-        <button class="w95" onclick="accountCheckEmail()" style="font-weight:bold;min-width:80px">Next →</button>
-      </div>`;
-  } else {
-    const isLogin = AccountState.exists === true;
-    body = `
-      <div class="dialog-body" style="${bodyStyle}">
-        <div style="${fieldStyle}">
-          <label style="font-size:11px;color:#404040">Account</label>
-          <div style="display:flex;gap:4px;width:100%">
-            <input class="w95" type="email" readonly value="${escapeAttr(AccountState.email)}"
-                   style="flex:1;text-align:center;background:#e0e0e0">
-            <button class="w95 small" title="變更 Email" onclick="accountBackToStep1()">←</button>
-          </div>
-        </div>
-        ${isLogin
-          ? `<div style="font-size:11px;color:#006400">✓ 此帳號已存在,請輸入密碼登入</div>`
-          : `<div style="font-size:11px;color:#804000;max-width:300px">此帳號尚未註冊。填寫密碼即可建立新帳號(目前的本地範本會自動上傳)</div>`}
-        <div style="${fieldStyle}">
-          <label style="font-size:11px;color:#404040">Password</label>
-          <input class="w95" id="auth-pass" type="password"
-                 autocomplete="${isLogin ? 'current-password' : 'new-password'}"
-                 placeholder="${isLogin ? '' : '至少 8 字元'}"
-                 style="${inputStyle}" onkeydown="if(event.key==='Enter')${isLogin?'accountLogin()':'accountRegister()'}" autofocus>
-        </div>
-      </div>
-      <div class="dialog-footer" style="${footerStyle}">
-        <button class="w95" onclick="accountBackToStep1()" style="min-width:80px">← Back</button>
-        ${isLogin
-          ? `<button class="w95" onclick="accountLogin()" style="font-weight:bold;min-width:80px">Login</button>`
-          : `<button class="w95" onclick="accountRegister()" style="font-weight:bold;min-width:80px">Register</button>`}
-      </div>`;
-  }
-
-  host.innerHTML = `
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-      <div class="dialog" style="min-width:420px">
-        ${header('Account')}
-        ${body}
-      </div>
-    </div>`;
-
-  setTimeout(() => {
-    const f = document.getElementById(AccountState.step === 1 ? 'auth-email' : 'auth-pass');
-    f?.focus();
-  }, 0);
-}
-
-async function accountCheckEmail() {
-  const email = document.getElementById('auth-email').value.trim().toLowerCase();
-  if (!email || !email.includes('@')) { openAlert('請輸入有效的 Email'); return; }
-  try {
-    const exists = await Sync.checkEmail(email);
-    AccountState.email = email;
-    AccountState.exists = exists;
-    AccountState.step = 2;
-    renderAccountDialog();
-  } catch (err) { openAlert('查詢失敗: ' + err.message); }
-}
-
-function accountBackToStep1() {
-  AccountState.step = 1;
-  AccountState.exists = null;
-  renderAccountDialog();
-}
-
-async function accountLogin() {
-  const pass = document.getElementById('auth-pass').value;
-  if (!pass) { openAlert('請輸入密碼'); return; }
-  try {
-    await Sync.login(AccountState.email, pass);
-    Sync.showToast('已登入: ' + AccountState.email);
-    closeModal();
-  } catch (err) { openAlert('登入失敗: ' + err.message); }
-}
-
-async function accountRegister() {
-  const pass = document.getElementById('auth-pass').value;
-  if (!pass || pass.length < 8) { openAlert('密碼至少需 8 個字元'); return; }
-  try {
-    await Sync.register(AccountState.email, pass);
-    App.templates.forEach(t => Sync.markDirty(t.id));
-    Sync.showToast('註冊成功: ' + AccountState.email);
-    closeModal();
-  } catch (err) { openAlert('註冊失敗: ' + err.message); }
-}
-
-async function accountLogout() {
-  await Sync.logout();
-  Sync.showToast('已登出');
-  openAccountDialog();
-}
-
 // ----- Share (sync code) dialog -----
 function openShareDialog() {
   const code = (window.Sync && Sync.currentCode) ? Sync.currentCode() : null;
@@ -449,7 +308,7 @@ async function shareDialogCreateCode() {
   try {
     await Sync.createSyncCode();
     App.templates.forEach(t => Sync.markDirty(t.id));
-    openShareDialog(); // re-render with the new code
+    openShareDialog();
   } catch (err) { openAlert('產生失敗: ' + err.message); }
 }
 
@@ -458,8 +317,6 @@ window.shareDialogCreateCode = shareDialogCreateCode;
 
 // ----- Import (sync code) dialog -----
 function openImportDialog() {
-  const s = Sync.status();
-  const isLogin = !!s.user;
   const host = document.getElementById('modal-host');
   host.innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
@@ -470,9 +327,7 @@ function openImportDialog() {
         </div>
         <div class="dialog-body">
           <p style="margin:0 0 8px;font-size:11px;color:#404040">
-            ${isLogin
-              ? `已登入為 <b>${escapeHtml(s.user.email)}</b>。輸入 Sync Code 會將該工作區的範本<b>合併到你的帳號</b>,來源工作區會被刪除。`
-              : `輸入 Sync Code 連接到該工作區;範本會與本機現有範本合併。`}
+            輸入 Sync Code 連接到該工作區;範本會與本機現有範本合併。
           </p>
           <div class="row">
             <label style="width:80px">Sync Code:</label>
@@ -483,9 +338,7 @@ function openImportDialog() {
         </div>
         <div class="dialog-footer">
           <button class="w95" onclick="closeModal()">Cancel</button>
-          <button class="w95" onclick="confirmImportCode()" style="font-weight:bold">
-            ${isLogin ? '合併到帳號' : '套用'}
-          </button>
+          <button class="w95" onclick="confirmImportCode()" style="font-weight:bold">套用</button>
         </div>
       </div>
     </div>`;
@@ -494,15 +347,9 @@ function openImportDialog() {
 async function confirmImportCode() {
   const code = document.getElementById('import-code').value.trim().toLowerCase();
   if (!code) { openAlert('請輸入 Sync Code'); return; }
-  const s = Sync.status();
   try {
-    if (s.user) {
-      await Sync.claimSyncCode(code);
-      Sync.showToast('已合併 workspace 到帳號');
-    } else {
-      await Sync.useSyncCode(code);
-      Sync.showToast('已連接 Sync Code');
-    }
+    await Sync.useSyncCode(code);
+    Sync.showToast('已連接 Sync Code');
     closeModal();
     renderNav();
     renderSheet();
@@ -554,7 +401,7 @@ function confirmWhereDialog() {
 
 function cancelWhereDialog() {
   closeModal();
-  renderSheet(); // t.mode unchanged — re-render restores radio state
+  renderSheet();
 }
 
 window.openWhereDialog = openWhereDialog;
@@ -571,12 +418,6 @@ window.downloadSQL = downloadSQL;
 window.openConfirm = openConfirm;
 window.openAlert = openAlert;
 window.closeModal = closeModal;
-window.openAccountDialog = openAccountDialog;
-window.accountCheckEmail = accountCheckEmail;
-window.accountBackToStep1 = accountBackToStep1;
-window.accountLogin = accountLogin;
-window.accountRegister = accountRegister;
-window.accountLogout = accountLogout;
 window.colLetter = window.colLetter || function(i) {
   let s=''; i=i+1; while(i>0){const r=(i-1)%26; s=String.fromCharCode(65+r)+s; i=Math.floor((i-1)/26);} return s;
 };

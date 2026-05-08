@@ -1,4 +1,4 @@
-// sync.js — cross-device template sync (sync code or account-based)
+// sync.js — cross-device template sync via anonymous Sync Code
 // Depends on: app.js (App, saveTemplates, renderNav, renderSheet)
 
 const Sync = (() => {
@@ -8,7 +8,6 @@ const Sync = (() => {
 
   const state = {
     code: localStorage.getItem(CODE_KEY) || null,
-    user: null,        // { id, email } when logged in
     enabled: false,    // true once we know there's a workspace
     online: navigator.onLine,
     pushTimer: null,
@@ -20,10 +19,9 @@ const Sync = (() => {
   async function req(method, path, body) {
     const opts = {
       method,
-      credentials: 'same-origin',
       headers: { 'Accept': 'application/json' },
     };
-    if (state.code && !state.user) opts.headers['X-Sync-Code'] = state.code;
+    if (state.code) opts.headers['X-Sync-Code'] = state.code;
     if (body !== undefined) {
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
@@ -38,51 +36,6 @@ const Sync = (() => {
       throw err;
     }
     return data;
-  }
-
-  // ---------- auth ----------
-  async function refreshMe() {
-    try {
-      const me = await req('GET', '/api/auth/me');
-      state.user = me && me.authenticated ? { id: me.id, email: me.email } : null;
-    } catch { state.user = null; }
-  }
-
-  async function checkEmail(email) {
-    const r = await req('POST', '/api/auth/check', { email });
-    return !!(r && r.exists);
-  }
-
-  async function register(email, password) {
-    const u = await req('POST', '/api/auth/register', { email, password });
-    state.user = { id: u.id, email: u.email };
-    // account has its own workspace; drop anonymous code
-    setSyncCode(null);
-    state.enabled = true;
-    await pull({ merge: true });
-    return u;
-  }
-
-  async function login(email, password) {
-    const u = await req('POST', '/api/auth/login', { email, password });
-    state.user = { id: u.id, email: u.email };
-    setSyncCode(null);
-    state.enabled = true;
-    await pull({ merge: true });
-    return u;
-  }
-
-  async function logout() {
-    try { await req('POST', '/api/auth/logout'); } catch {}
-    state.user = null;
-    state.enabled = !!state.code;
-  }
-
-  async function claimSyncCode(code) {
-    if (!state.user) throw new Error('must be logged in');
-    await req('POST', '/api/workspace/claim', { sync_code: code.trim() });
-    setSyncCode(null);
-    await pull({ merge: true });
   }
 
   // ---------- sync code ----------
@@ -114,7 +67,7 @@ const Sync = (() => {
 
   function clearSyncCode() {
     setSyncCode(null);
-    if (!state.user) state.enabled = false;
+    state.enabled = false;
   }
 
   function currentCode() {
@@ -132,7 +85,6 @@ const Sync = (() => {
     if (!merge) {
       App.templates = remote;
     } else {
-      // Merge: prefer most recent by updatedAt; remote deletions propagate via DELETE handling elsewhere.
       const byId = new Map(App.templates.map(t => [t.id, t]));
       for (const rt of remote) {
         const local = byId.get(rt.id);
@@ -154,8 +106,8 @@ const Sync = (() => {
   }
 
   // ---------- push ----------
-  const pendingPush = new Set();    // template ids needing push
-  const pendingDelete = new Set();  // template ids needing remote delete
+  const pendingPush = new Set();
+  const pendingDelete = new Set();
 
   function markDirty(id) {
     if (!state.enabled) return;
@@ -193,7 +145,7 @@ const Sync = (() => {
         LAST_UPDATED.set(id, r.updatedAt);
       } catch (err) {
         console.error('push failed for', id, err);
-        if (err.status !== 409) pendingPush.add(id);  // retry, except on conflicts
+        if (err.status !== 409) pendingPush.add(id);
         showToast('同步失敗: ' + err.message);
       }
     }
@@ -212,14 +164,12 @@ const Sync = (() => {
 
   // ---------- boot ----------
   async function init() {
-    await refreshMe();
-    if (state.user || state.code) {
+    if (state.code) {
       state.enabled = true;
       try { await pull({ merge: true }); }
       catch (err) {
         console.error('initial pull failed', err);
-        if (err.status === 401 && state.code) {
-          // code no longer valid
+        if (err.status === 401) {
           clearSyncCode();
           showToast('Sync code 無效,已停用同步');
         }
@@ -229,7 +179,6 @@ const Sync = (() => {
 
   function status() {
     return {
-      user: state.user,
       code: state.code,
       enabled: state.enabled,
       online: state.online,
@@ -250,8 +199,7 @@ const Sync = (() => {
   }
 
   return {
-    init, status, refreshMe,
-    checkEmail, register, login, logout, claimSyncCode,
+    init, status,
     createSyncCode, useSyncCode, clearSyncCode, currentCode,
     pull, markDirty, markDeleted, flushPending,
     showToast,

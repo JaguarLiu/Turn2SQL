@@ -2,7 +2,7 @@
 
 # Turn2SQL
 
-A Go web application for uploading Excel/CSV files and converting them to SQL statements across multiple dialects. The frontend is a Windows 95-themed UI that parses spreadsheets client-side and generates SQL DDL/DML in-browser. Templates can be synced across devices via an anonymous **sync code** or a **registered account**.
+A Go web application for uploading Excel/CSV files and converting them to SQL statements across multiple dialects. The frontend is a Windows 95-themed UI that parses spreadsheets client-side and generates SQL DDL/DML in-browser. Templates can be synced across devices via an anonymous **sync code**.
 
 ## Features
 
@@ -11,10 +11,9 @@ A Go web application for uploading Excel/CSV files and converting them to SQL st
 - Pick header row, rename/retype columns, edit cells inline (debounced persistence — no full re-render on each keystroke)
 - Generate SQL for MySQL, PostgreSQL, SQL Server, SQLite, ANSI SQL
 - Output modes: **CREATE**, **INSERT**, **UPDATE** (pick WHERE columns via a listbox dialog — at least one required), **CREATE & INSERT**
-- **Cross-device sync:**
+- **Cross-device sync via Sync Code:**
   - Anonymous **Sync Code** (10-char token) — `🔗 Share` toolbar button shows the code + a shareable URL (`/sync/{code}`) with copy buttons
-  - **`📥 Import`** toolbar button — paste a sync code to adopt a workspace; when logged in it merges the remote workspace into your account (claim) and deletes the anonymous source
-  - **Account login** (stepped dialog) — enter email, backend checks existence, then either asks for password (existing) or lets you register inline (new). Workspace auto-bound to the account across any logged-in browser
+  - **`📥 Import`** toolbar button — paste a sync code on another device to adopt the workspace; templates merge with what's already on that device
 - Offline-first: all edits save locally first, queued for background sync, retry on reconnect
 - Theming (Teal / Navy / Plum / Olive), font-smoothing toggle, sample-data loader
 
@@ -47,16 +46,9 @@ Visit `http://localhost:8000`. SQLite database (`data.db`) is created automatica
 
 **Share (generate / copy a sync code):** click **🔗 Share** in the toolbar → dialog shows the current sync code and a shareable URL like `http://host/sync/{code}`, each with a Copy button. If none yet, the dialog offers an inline *產生 Sync Code* button.
 
-**Import (adopt someone else's code, or a code from another device):** click **📥 Import** in the toolbar → paste the code.
-- When **logged in** → merges that workspace's templates into your account (claim), source is deleted
-- When **anonymous** → switches your local client to sync against that workspace
+**Import (adopt a code from another device):** click **📥 Import** in the toolbar → paste the code. Your local client switches to sync against that workspace; existing local templates merge with whatever is on the remote.
 
-**Shareable URL:** opening `http://host/sync/{code}` in a new browser automatically adopts the code (the URL is cleaned from the address bar; skipped if you're already logged in).
-
-**Account:** click the 👤 button in the template nav pane.
-1. Enter your email → **Next →**
-2. Backend reports whether the account exists
-3. Enter password and hit **Login** (existing) or **Register** (new). On register, current local templates upload to the new account automatically
+**Shareable URL:** opening `http://host/sync/{code}` in a new browser automatically adopts the code (the URL is cleaned from the address bar).
 
 ## Building for Production
 

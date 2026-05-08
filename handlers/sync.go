@@ -17,7 +17,7 @@ func workspaceFromCtx(c *gin.Context) *models.Workspace {
 	return nil
 }
 
-// CreateAnonymousWorkspace issues a new sync code for unauthenticated use.
+// CreateAnonymousWorkspace issues a new sync code.
 func CreateAnonymousWorkspace(c *gin.Context) {
 	ws, err := models.CreateAnonymousWorkspace()
 	if err != nil {
@@ -33,33 +33,7 @@ func GetWorkspace(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"id":        ws.ID,
 		"sync_code": ws.SyncCode,
-		"owned":     ws.OwnerUserID != nil,
 	})
-}
-
-// ClaimWorkspace binds an anonymous workspace to the logged-in user.
-func ClaimWorkspace(c *gin.Context) {
-	var b struct {
-		SyncCode string `json:"sync_code"`
-	}
-	if err := c.ShouldBindJSON(&b); err != nil || b.SyncCode == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "sync_code required"})
-		return
-	}
-	u := c.MustGet("user").(*models.User)
-	ws, err := models.ClaimWorkspace(u.ID, b.SyncCode)
-	if err != nil {
-		switch {
-		case errors.Is(err, models.ErrWorkspaceNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"error": "sync code not found"})
-		case errors.Is(err, models.ErrAlreadyClaimed):
-			c.JSON(http.StatusConflict, gin.H{"error": "workspace already claimed"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to claim"})
-		}
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"sync_code": ws.SyncCode, "owned": true})
 }
 
 // ListTemplates returns all templates for the current workspace.

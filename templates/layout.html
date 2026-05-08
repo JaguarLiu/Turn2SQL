@@ -30,7 +30,6 @@
                         <div class="nav-header">
                             <span>📁 Templates</span>
                             <div style="display:flex;gap:3px">
-                                <button class="w95 icon-btn" title="Account / Sync" onclick="openAccountDialog()" style="font-weight:bold">👤</button>
                                 <button class="w95 icon-btn" title="新增範本 (上傳檔案)" onclick="openUploadDialog({forceNew:true})" style="font-weight:bold">
                                     <svg width="12" height="12" viewBox="0 0 12 12" shape-rendering="crispEdges">
                                         <rect x="5" y="1" width="2" height="10" fill="#008000"/>
@@ -90,8 +89,8 @@
         <!-- App scripts -->
         <script src="/static/js/sql.js?v=6"></script>
         <script src="/static/js/app.js?v=9"></script>
-        <script src="/static/js/sync.js?v=2"></script>
-        <script src="/static/js/dialogs.js?v=11"></script>
+        <script src="/static/js/sync.js?v=3"></script>
+        <script src="/static/js/dialogs.js?v=12"></script>
 
         <script>
             // ---------- theme + tweaks ----------
@@ -141,9 +140,7 @@
                 if (shareMatch) {
                     const code = shareMatch[1].toLowerCase();
                     const cur = Sync.status();
-                    if (cur.user) {
-                        Sync.showToast('已登入帳號,略過分享連結(請改用「認領」)');
-                    } else if (cur.code === code) {
+                    if (cur.code === code) {
                         Sync.showToast('分享連結已套用');
                     } else {
                         try {
