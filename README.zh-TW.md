@@ -83,6 +83,7 @@ docker compose up -d --build
 |---|---|---|
 | `DATABASE_PATH` | `./data.db` | SQLite 檔案路徑 |
 | `GIN_MODE` | `debug` | 上線時設為 `release` |
+| `TRUSTED_PROXIES` | _(無)_ | 以逗號分隔、可信任其 `X-Forwarded-For` 的 proxy IP/CIDR。放在反向代理後面時務必設定，否則所有使用者會共用同一個限流額度 |
 
 ## 授權
 

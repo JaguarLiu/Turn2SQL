@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 	"turn2sql/handlers"
 	"turn2sql/middleware"
 	"turn2sql/models"
@@ -22,6 +23,12 @@ func main() {
 
 	router := gin.Default()
 
+	// 預設不信任任何 proxy（ClientIP = 連線來源）；放在反向代理後面時用
+	// TRUSTED_PROXIES（逗號分隔的 IP/CIDR）指定，否則所有人會共用同一個限流額度。
+	if err := router.SetTrustedProxies(trustedProxies()); err != nil {
+		log.Fatalf("Invalid TRUSTED_PROXIES: %v", err)
+	}
+
 	// Static files
 	router.Use(static.Serve("/static", static.LocalFile("./static", false)))
 
@@ -29,12 +36,18 @@ func main() {
 	router.GET("/", handlers.IndexHandler)
 	router.GET("/sync/:code", handlers.IndexHandler)
 
-	// Workspace — anon create is public
-	router.POST("/api/workspace/anon", handlers.CreateAnonymousWorkspace)
-	router.GET("/api/workspace", middleware.RequireWorkspace, handlers.GetWorkspace)
+	// API：body 上限 20MB；每 IP 每秒 20 個請求，可瞬間累積 100 個
+	api := router.Group("/api",
+		middleware.BodyLimit(middleware.MaxBodyBytes),
+		middleware.NewIPLimiter(20, 100).Middleware(),
+	)
+
+	// Workspace — anon create is public（每 IP 最多連續 5 次，之後每 12 秒 1 次）
+	api.POST("/workspace/anon", middleware.NewIPLimiter(1.0/12, 5).Middleware(), handlers.CreateAnonymousWorkspace)
+	api.GET("/workspace", middleware.RequireWorkspace, handlers.GetWorkspace)
 
 	// Template sync
-	tmpl := router.Group("/api/templates", middleware.RequireWorkspace)
+	tmpl := api.Group("/templates", middleware.RequireWorkspace)
 	{
 		tmpl.GET("", handlers.ListTemplates)
 		tmpl.PUT("/:id", handlers.PutTemplate)
@@ -45,4 +58,14 @@ func main() {
 	if err := router.Run(":8000"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+func trustedProxies() []string {
+	var out []string
+	for _, p := range strings.Split(os.Getenv("TRUSTED_PROXIES"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }

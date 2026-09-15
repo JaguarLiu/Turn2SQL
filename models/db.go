@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_templates_workspace ON templates(workspace_id);
 
 // InitDB opens the SQLite database and runs schema migration.
 func InitDB(path string) error {
-	db, err := sql.Open("sqlite", path+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
+	db, err := sql.Open("sqlite", path+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_txlock=immediate")
 	if err != nil {
 		return fmt.Errorf("open sqlite: %w", err)
 	}

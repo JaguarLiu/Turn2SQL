@@ -83,6 +83,7 @@ docker compose up -d --build
 |---|---|---|
 | `DATABASE_PATH` | `./data.db` | SQLite file path |
 | `GIN_MODE` | `debug` | Set to `release` in production |
+| `TRUSTED_PROXIES` | _(none)_ | Comma-separated proxy IPs/CIDRs whose `X-Forwarded-For` is trusted. Set this when running behind a reverse proxy, otherwise all clients share one rate-limit bucket |
 
 ## License
 

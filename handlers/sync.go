@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"time"
+	"turn2sql/middleware"
 	"turn2sql/models"
 
 	"github.com/gin-gonic/gin"
@@ -57,6 +58,10 @@ func PutTemplate(c *gin.Context) {
 		UpdatedAt time.Time       `json:"updatedAt"`
 	}
 	if err := c.ShouldBindJSON(&b); err != nil {
+		if middleware.IsBodyTooLarge(err) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "request body too large"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid body"})
 		return
 	}
@@ -68,6 +73,10 @@ func PutTemplate(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, models.ErrStaleUpdate) {
 			c.JSON(http.StatusConflict, gin.H{"error": "template was updated elsewhere"})
+			return
+		}
+		if errors.Is(err, models.ErrWorkspaceNotFound) {
+			c.JSON(http.StatusConflict, gin.H{"error": "template id belongs to another workspace"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save"})

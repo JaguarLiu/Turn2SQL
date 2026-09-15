@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---------- build stage ----------
-FROM golang:1.25-alpine AS build
+FROM golang:1.25.13-alpine3.24 AS build
 
 WORKDIR /src
 
@@ -19,7 +19,7 @@ ENV CGO_ENABLED=0 \
 RUN go build -trimpath -ldflags="-s -w" -o /out/turn2sql ./
 
 # ---------- runtime stage ----------
-FROM alpine:3.20
+FROM alpine:3.24
 
 RUN apk add --no-cache ca-certificates tzdata \
     && adduser -D -u 10001 app

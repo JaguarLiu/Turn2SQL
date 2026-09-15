@@ -97,10 +97,17 @@ func ListTemplates(workspaceID int64) ([]Template, error) {
 }
 
 // UpsertTemplate inserts or updates a template. Rejects write if client's updatedAt is older than stored.
+// 讀取檢查與寫入在同一個 transaction 內（DSN 設 _txlock=immediate，一開始就拿寫鎖），並發寫入會排隊而不會互相覆蓋。
 func UpsertTemplate(workspaceID int64, id, name string, data json.RawMessage, clientUpdatedAt time.Time) (*Template, error) {
+	tx, err := DB.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
 	var existingUpdated time.Time
 	var existingWorkspace int64
-	err := DB.QueryRow(`SELECT workspace_id, updated_at FROM templates WHERE id = ?`, id).Scan(&existingWorkspace, &existingUpdated)
+	err = tx.QueryRow(`SELECT workspace_id, updated_at FROM templates WHERE id = ?`, id).Scan(&existingWorkspace, &existingUpdated)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
@@ -116,11 +123,21 @@ func UpsertTemplate(workspaceID int64, id, name string, data json.RawMessage, cl
 	if clientUpdatedAt.IsZero() || clientUpdatedAt.After(now) {
 		clientUpdatedAt = now
 	}
-	_, err = DB.Exec(`
+	// DO UPDATE 帶 workspace 條件：就算 id 已屬於別的 workspace 也不會被覆蓋
+	res, err := tx.Exec(`
 		INSERT INTO templates (id, workspace_id, name, data_json, updated_at) VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET name = excluded.name, data_json = excluded.data_json, updated_at = excluded.updated_at
+		WHERE templates.workspace_id = excluded.workspace_id
 	`, id, workspaceID, name, string(data), clientUpdatedAt)
 	if err != nil {
+		return nil, err
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return nil, err
+	} else if n == 0 {
+		return nil, ErrWorkspaceNotFound
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return &Template{ID: id, WorkspaceID: workspaceID, Name: name, Data: data, UpdatedAt: clientUpdatedAt}, nil
