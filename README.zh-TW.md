@@ -32,6 +32,17 @@ go run main.go
 
 開啟 `http://localhost:8000`。SQLite 資料庫（`data.db`）會在首次執行時自動建立。
 
+測試：
+
+```bash
+go test ./...                          # Go：AI provider、task、handler
+TZ=Asia/Taipei node test/sql.test.js   # SQL 產生（日期會受時區影響）
+node test/rules.test.js                # 資料清洗規則引擎
+node test/ai.test.js                   # 抽樣與個資遮蔽
+```
+
+`test/e2e.test.js` 會用 mock provider 對實際伺服器跑前端模組，指令寫在該檔開頭。
+
 ## 使用方式
 
 ### 基本編輯
@@ -84,6 +95,15 @@ docker compose up -d --build
 | `DATABASE_PATH` | `./data.db` | SQLite 檔案路徑 |
 | `GIN_MODE` | `debug` | 上線時設為 `release` |
 | `TRUSTED_PROXIES` | _(無)_ | 以逗號分隔、可信任其 `X-Forwarded-For` 的 proxy IP/CIDR。放在反向代理後面時務必設定，否則所有使用者會共用同一個限流額度 |
+| `AI_PROVIDER` | `gemini` | 伺服器端 AI provider：`claude`、`gemini`、`openai` 或 `mock`。沒有對應金鑰時伺服器端 AI 仍為關閉（自帶金鑰的請求仍可用） |
+| `AI_MODEL` / `AI_MODEL_<PROVIDER>` / `AI_MODEL_<TASK>` | _(SDK 預設)_ | 指定模型，可依 provider 或依功能（`AI_MODEL_SCHEMA`、`AI_MODEL_CLEAN`） |
+| `AI_FALLBACK` | _(無)_ | 主要 provider 流量超限或故障時改用的備援 provider |
+| `AI_TIMEOUT` | `60s` | 單次 AI 請求逾時 |
+| `AI_PRICING_FILE` | _(無)_ | 覆寫內建單價表的 JSON 檔（僅用於花費記錄） |
+| `AI_MOCK_DIR` | _(無)_ | 搭配 `AI_PROVIDER=mock`，放 `<model>.json` fixture 的目錄 |
+| `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` | _(無)_ | 各 provider 的金鑰 |
+| `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION` | _(無)_ | 改用 Vertex AI 而非 Gemini API |
+| `TEMPLATES_DIR` | `templates` | HTML 模板目錄 |
 
 ## 授權
 

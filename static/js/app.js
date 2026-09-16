@@ -113,6 +113,23 @@ function renderSheet() {
         <button class="w95 small" onclick="openWhereDialog()">編輯...</button>
       </div>` : ''}
       <div class="spacer"></div>
+      <button class="w95" title="AI 建議欄位名稱與型別" onclick="openAISchemaDialog()">
+        <svg width="14" height="14" viewBox="0 0 16 16" shape-rendering="crispEdges" style="vertical-align:-3px;margin-right:3px">
+          <rect x="3" y="4" width="10" height="8" fill="#c0c0c0" stroke="#000"/>
+          <rect x="5" y="6" width="2" height="2" fill="#000080"/>
+          <rect x="9" y="6" width="2" height="2" fill="#000080"/>
+          <line x1="8" y1="1" x2="8" y2="4" stroke="#000"/>
+        </svg>
+        AI 建表
+      </button>
+      <button class="w95" title="偵測並清洗資料格式" onclick="openCleanDialog()">
+        <svg width="14" height="14" viewBox="0 0 16 16" shape-rendering="crispEdges" style="vertical-align:-3px;margin-right:3px">
+          <rect x="6" y="2" width="4" height="6" fill="#c0c0c0" stroke="#000"/>
+          <rect x="4" y="8" width="8" height="6" fill="#00a0a0" stroke="#000"/>
+        </svg>
+        清洗
+      </button>
+      <button class="w95 small" title="AI 設定" onclick="openAISettingsDialog()">⚙</button>
       <button class="w95" title="分享 Sync Code" onclick="openShareDialog()">
         <svg width="14" height="14" viewBox="0 0 16 16" shape-rendering="crispEdges" style="vertical-align:-3px">
           <circle cx="4" cy="8" r="2" fill="#c0c0c0" stroke="#000"/>

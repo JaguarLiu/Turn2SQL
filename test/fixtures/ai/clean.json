@@ -1,0 +1,4 @@
+{"rules":[
+ {"column":"訂單日期","op":"roc_to_ad","from":null,"format":null,"mapping":[],"sampleBefore":"113/05/01","sampleAfter":"2024-05-01","reason":"民國年"},
+ {"column":"金額","op":"strip_currency","from":null,"format":null,"mapping":[],"sampleBefore":"NT$1,234","sampleAfter":"1234","reason":"貨幣符號"},
+ {"column":"狀態","op":"map_values","from":null,"format":null,"mapping":[{"from":"是","to":"1"},{"from":"否","to":"0"}],"sampleBefore":"是","sampleAfter":"1","reason":"布林值"}]}

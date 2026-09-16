@@ -1,0 +1,4 @@
+{"tableName":"orders","columns":[
+ {"original":"訂單日期","name":"order_date","type":"DATE","length":null,"precision":null,"scale":null,"nullable":false,"primaryKey":false,"comment":"訂單日期","reason":"民國年日期"},
+ {"original":"金額","name":"amount","type":"DECIMAL","length":null,"precision":12,"scale":2,"nullable":true,"primaryKey":false,"comment":"金額","reason":"含千分位金額"},
+ {"original":"身分證","name":"id_no","type":"VARCHAR","length":10,"precision":null,"scale":null,"nullable":false,"primaryKey":true,"comment":"身分證","reason":"唯一識別碼"}]}

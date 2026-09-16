@@ -32,6 +32,17 @@ go run main.go
 
 Visit `http://localhost:8000`. SQLite database (`data.db`) is created automatically on first run.
 
+Tests:
+
+```bash
+go test ./...                          # Go: AI providers, tasks, handlers
+TZ=Asia/Taipei node test/sql.test.js   # SQL generation (dates are timezone-sensitive)
+node test/rules.test.js                # Data-cleaning rule engine
+node test/ai.test.js                   # Sampling + PII masking
+```
+
+`test/e2e.test.js` drives the browser modules against a running server with the mock provider — see the header of that file for the command.
+
 ## Usage
 
 ### Basic editing
@@ -84,6 +95,15 @@ docker compose up -d --build
 | `DATABASE_PATH` | `./data.db` | SQLite file path |
 | `GIN_MODE` | `debug` | Set to `release` in production |
 | `TRUSTED_PROXIES` | _(none)_ | Comma-separated proxy IPs/CIDRs whose `X-Forwarded-For` is trusted. Set this when running behind a reverse proxy, otherwise all clients share one rate-limit bucket |
+| `AI_PROVIDER` | `gemini` | Server-side AI provider: `claude`, `gemini`, `openai`, or `mock`. Server-side AI stays off until the matching key is set (BYOK requests still work) |
+| `AI_MODEL` / `AI_MODEL_<PROVIDER>` / `AI_MODEL_<TASK>` | _(SDK default)_ | Model override, per provider or per task (`AI_MODEL_SCHEMA`, `AI_MODEL_CLEAN`) |
+| `AI_FALLBACK` | _(none)_ | Provider to retry with when the primary one is rate-limited or down |
+| `AI_TIMEOUT` | `60s` | Per-request AI timeout |
+| `AI_PRICING_FILE` | _(none)_ | JSON file overriding the built-in per-model price table (used for cost logging only) |
+| `AI_MOCK_DIR` | _(none)_ | With `AI_PROVIDER=mock`, directory of `<model>.json` fixtures |
+| `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` | _(none)_ | Credentials for the matching provider |
+| `GOOGLE_CLOUD_PROJECT` + `GOOGLE_CLOUD_LOCATION` | _(none)_ | Use Vertex AI instead of the Gemini API |
+| `TEMPLATES_DIR` | `templates` | HTML template directory |
 
 ## License
 
