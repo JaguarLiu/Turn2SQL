@@ -41,6 +41,12 @@ node test/rules.test.js                # 資料清洗規則引擎
 node test/ai.test.js                   # 抽樣與個資遮蔽
 ```
 
+整合測試會用 Docker 起真的資料庫（testcontainers），把產生的 SQL 實際執行一次：
+
+```bash
+go test -tags integration ./integration/...   # 需要 Docker 與 node，約 15 秒
+```
+
 `test/e2e.test.js` 會用 mock provider 對實際伺服器跑前端模組，指令寫在該檔開頭。
 
 ## 使用方式

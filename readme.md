@@ -41,6 +41,12 @@ node test/rules.test.js                # Data-cleaning rule engine
 node test/ai.test.js                   # Sampling + PII masking
 ```
 
+Integration tests run the generated SQL against a real database in Docker (testcontainers):
+
+```bash
+go test -tags integration ./integration/...   # needs Docker + node, ~15s
+```
+
 `test/e2e.test.js` drives the browser modules against a running server with the mock provider — see the header of that file for the command.
 
 ## Usage
