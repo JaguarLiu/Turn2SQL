@@ -11,6 +11,10 @@ services:
     environment:
       DATABASE_PATH: /app/data/data.db
       GIN_MODE: release
+      # AI：預設 gemini。沒設定金鑰時伺服器端 AI 關閉，使用者仍可自帶金鑰。
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
 
 volumes:
   turn2sql-data:

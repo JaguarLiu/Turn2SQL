@@ -13,6 +13,10 @@ import (
 // MaxBodyBytes 是 API 請求 body 的上限（20MB）。
 const MaxBodyBytes int64 = 20 << 20
 
+// MaxAIBodyBytes 是 AI 端點的上限（1MB）。AI 只收抽樣資料，
+// 不該有人把整份資料送上來。
+const MaxAIBodyBytes int64 = 1 << 20
+
 // BodyLimit 限制請求 body 大小；Content-Length 已超過就直接回 413，
 // 否則包一層 MaxBytesReader，讀超過時由 handler 以 IsBodyTooLarge 判斷。
 func BodyLimit(limit int64) gin.HandlerFunc {

@@ -7,6 +7,7 @@ import (
 	"turn2sql/handlers"
 	"turn2sql/middleware"
 	"turn2sql/models"
+	"turn2sql/templates"
 
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,10 @@ func main() {
 	}
 	if err := models.InitDB(dbPath); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	// 啟動時就確認模板讀得到，而不是等第一個請求才失敗
+	if err := templates.Load(); err != nil {
+		log.Fatalf("Failed to load templates: %v", err)
 	}
 
 	router := gin.Default()
@@ -45,6 +50,18 @@ func main() {
 	// Workspace — anon create is public（每 IP 最多連續 5 次，之後每 12 秒 1 次）
 	api.POST("/workspace/anon", middleware.NewIPLimiter(1.0/12, 5).Middleware(), handlers.CreateAnonymousWorkspace)
 	api.GET("/workspace", middleware.RequireWorkspace, handlers.GetWorkspace)
+
+	// AI：body 上限比一般 API 小（只收抽樣資料），流量限制也更嚴格
+	aiHandler := handlers.NewAIHandler()
+	aiGroup := api.Group("/ai",
+		middleware.BodyLimit(middleware.MaxAIBodyBytes),
+		middleware.NewIPLimiter(1.0/3, 10).Middleware(),
+	)
+	{
+		aiGroup.GET("/providers", aiHandler.ListProviders)
+		aiGroup.POST("/schema", aiHandler.SuggestSchema)
+		aiGroup.POST("/clean-rules", aiHandler.SuggestCleanRules)
+	}
 
 	// Template sync
 	tmpl := api.Group("/templates", middleware.RequireWorkspace)
