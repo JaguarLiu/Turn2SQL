@@ -127,12 +127,31 @@ function openFieldDialog(idx) {
             </div>
             <div style="display:flex;align-items:center;gap:6px;margin:4px 0">
               <label style="width:70px">Data Type:</label>
-              <select class="w95" id="fld-type" style="flex:1">
+              <select class="w95" id="fld-type" style="flex:1" onchange="syncFieldDialog()">
                 ${Turn2SQL.DATA_TYPES.map(dt => `<option value="${dt}" ${dt===f.type?'selected':''}>${dt}</option>`).join('')}
               </select>
             </div>
+            <div id="fld-len-row" style="display:flex;align-items:center;gap:6px;margin:4px 0">
+              <label style="width:70px">長度:</label>
+              <input class="w95" id="fld-length" type="number" min="1" value="${escapeAttr(f.length ?? '')}" placeholder="255" style="flex:1">
+            </div>
+            <div id="fld-dec-row" style="display:flex;align-items:center;gap:6px;margin:4px 0">
+              <label style="width:70px">精度:</label>
+              <input class="w95" id="fld-precision" type="number" min="1" value="${escapeAttr(f.precision ?? '')}" placeholder="18" style="flex:1">
+              <label>小數位:</label>
+              <input class="w95" id="fld-scale" type="number" min="0" value="${escapeAttr(f.scale ?? '')}" placeholder="4" style="width:60px">
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;margin:4px 0">
+              <label><input type="checkbox" id="fld-notnull" ${f.nullable === false ? 'checked' : ''}> NOT NULL</label>
+              <label><input type="checkbox" id="fld-pk" ${f.primaryKey ? 'checked' : ''}> PRIMARY KEY</label>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin:4px 0">
+              <label style="width:70px">註解:</label>
+              <input class="w95" id="fld-comment" type="text" value="${escapeAttr(f.comment ?? '')}" placeholder="例如原始的中文欄位名" style="flex:1">
+            </div>
             <div style="font-size:11px;color:#505050;margin-top:8px;padding:4px;background:#ffffd8;border:1px solid #808080">
-              <b>提示:</b> VARCHAR=文字 · INT=整數 · DECIMAL=小數 · DATE=日期 · BOOLEAN=真偽
+              <b>提示:</b> VARCHAR=文字 · INT=整數 · DECIMAL=小數 · DATE=日期 · BOOLEAN=真偽<br>
+              長度與精度留空 = 使用預設值 (VARCHAR 255 / DECIMAL 18,4)。SQLite 會忽略這些設定。
             </div>
           </fieldset>
         </div>
@@ -142,13 +161,45 @@ function openFieldDialog(idx) {
         </div>
       </div>
     </div>`;
-  setTimeout(() => document.getElementById('fld-name')?.focus(), 0);
+  setTimeout(() => { syncFieldDialog(); document.getElementById('fld-name')?.focus(); }, 0);
+}
+
+// 依所選型別顯示對應的長度／精度欄位
+function syncFieldDialog() {
+  const type = document.getElementById('fld-type')?.value;
+  const lenRow = document.getElementById('fld-len-row');
+  const decRow = document.getElementById('fld-dec-row');
+  if (!lenRow || !decRow) return;
+  lenRow.style.display = type === 'VARCHAR' ? 'flex' : 'none';
+  decRow.style.display = type === 'DECIMAL' ? 'flex' : 'none';
 }
 function saveField(idx) {
   const name = document.getElementById('fld-name').value.trim();
   const type = document.getElementById('fld-type').value;
   if (!name) { openAlert('欄位名稱不能空白!'); return; }
-  updateActive(t => { t.fields[idx] = { ...t.fields[idx], name, type }; });
+
+  // 空值一律存成 undefined，維持與舊 template 相同的「沒設定」語意
+  const num = id => {
+    const v = document.getElementById(id)?.value.trim();
+    if (!v) return undefined;
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  };
+  const comment = document.getElementById('fld-comment')?.value.trim() || undefined;
+  const notNull = document.getElementById('fld-notnull')?.checked;
+  const primaryKey = document.getElementById('fld-pk')?.checked || undefined;
+
+  updateActive(t => {
+    t.fields[idx] = {
+      ...t.fields[idx], name, type,
+      length: type === 'VARCHAR' ? num('fld-length') : undefined,
+      precision: type === 'DECIMAL' ? num('fld-precision') : undefined,
+      scale: type === 'DECIMAL' ? num('fld-scale') : undefined,
+      nullable: notNull ? false : undefined,
+      primaryKey,
+      comment,
+    };
+  });
   closeModal();
 }
 
@@ -159,7 +210,7 @@ function previewSQL() {
     openAlert('UPDATE 模式需要至少勾選一個欄位作為 WHERE 條件。');
     return;
   }
-  const sql = Turn2SQL.generateSQL({
+  const { sql, warnings } = Turn2SQL.generateSQL({
     tableName: t.tableName, fields: t.fields, rows: t.rows, dialect: t.dialect, mode: t.mode,
     whereCols: t.whereCols || [],
   });
@@ -178,7 +229,8 @@ function previewSQL() {
           <div class="title-bar-controls"><button onclick="closeModal()">✕</button></div>
         </div>
         <div class="dialog-body">
-          <textarea class="w95" readonly style="width:100%;height:360px;font-family:Consolas,Courier New,monospace;font-size:12px;white-space:pre;background:#fff">${escapeHtml(sql)}</textarea>
+          ${warningsHtml(warnings)}
+          <textarea class="w95" readonly style="width:100%;height:${warnings.length ? '280px' : '360px'};font-family:Consolas,Courier New,monospace;font-size:12px;white-space:pre;background:#fff">${escapeHtml(sql)}</textarea>
         </div>
         <div class="dialog-footer">
           <button class="w95" onclick="navigator.clipboard.writeText(document.querySelector('.modal-overlay textarea').value); this.textContent='Copied!'">Copy</button>
@@ -189,16 +241,40 @@ function previewSQL() {
     </div>`;
 }
 
+// warningsHtml 列出無法依欄位型別解析的儲存格，避免資料默默變成 NULL 而沒人發現。
+function warningsHtml(warnings) {
+  if (!warnings || warnings.length === 0) return '';
+  const shown = warnings.slice(0, 20);
+  const rest = warnings.length - shown.length;
+  return `
+    <div style="margin-bottom:6px;padding:4px;background:#ffe8e8;border:1px solid #808080;max-height:120px;overflow:auto">
+      <b>⚠ ${warnings.length} 個儲存格無法依型別解析${warnings.truncated ? '（僅統計前 200 筆）' : ''}:</b>
+      <ul style="margin:4px 0 0 16px;padding:0;font-size:11px">
+        ${shown.map(w => `<li>第 ${w.row} 列 · ${escapeHtml(w.column)} (${w.type}) · "${escapeHtml(w.value)}" — ${escapeHtml(w.message)}</li>`).join('')}
+        ${rest > 0 ? `<li>…另有 ${rest} 筆</li>` : ''}
+      </ul>
+    </div>`;
+}
+
 function downloadSQL() {
   const t = getActive(); if (!t) return;
   if (t.mode === 'update' && (!t.whereCols || t.whereCols.length === 0)) {
     openAlert('UPDATE 模式需要至少勾選一個欄位作為 WHERE 條件。');
     return;
   }
-  const sql = Turn2SQL.generateSQL({
+  const { sql, warnings } = Turn2SQL.generateSQL({
     tableName: t.tableName, fields: t.fields, rows: t.rows, dialect: t.dialect, mode: t.mode,
     whereCols: t.whereCols || [],
   });
+  if (warnings.length && !window.__t2sWarnAck) {
+    // 先讓使用者看過警告再下載；確認後才繼續
+    openConfirm(`有 ${warnings.length} 個儲存格無法依型別解析（會輸出 NULL 或原樣輸出）。\n仍要下載嗎? 按「取消」可先開啟 Preview 檢視。`, () => {
+      window.__t2sWarnAck = true;
+      downloadSQL();
+      window.__t2sWarnAck = false;
+    });
+    return;
+  }
   const blob = new Blob([sql], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -413,6 +489,7 @@ window.closeUploadDialog = closeUploadDialog;
 window.handleFile = handleFile;
 window.openFieldDialog = openFieldDialog;
 window.saveField = saveField;
+window.syncFieldDialog = syncFieldDialog;
 window.previewSQL = previewSQL;
 window.downloadSQL = downloadSQL;
 window.openConfirm = openConfirm;
