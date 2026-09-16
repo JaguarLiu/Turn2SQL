@@ -72,7 +72,24 @@ check("Postgres 欄位行內沒有 COMMENT", ()=>assert.ok(!/VARCHAR\(50\) NOT N
 
 const mssql=gen({fields:F,mode:'create',dialect:'mssql'}).sql;
 check("MSSQL NVARCHAR 長度", ()=>assert.ok(mssql.includes('NVARCHAR(50)')));
-check("MSSQL 註解用 -- ", ()=>assert.ok(mssql.includes('-- 姓名')));
+check("MSSQL 註解放在欄位上一行（放後面會吃掉逗號）", ()=>{
+  assert.ok(/-- 姓名\n\s*\[name\] NVARCHAR\(50\) NOT NULL,/.test(mssql), mssql);
+});
+check("MSSQL 字串值加 N 前綴（否則中文變 ?）", ()=>{
+  const r=gen({fields:[{name:'memo',type:'VARCHAR'},{name:'d',type:'DATE'}],rows:[['中文','2026-06-15']],mode:'insert',dialect:'mssql'});
+  assert.ok(r.sql.includes("N'中文'"), r.sql);
+  assert.ok(r.sql.includes("N'2026-06-15'"), r.sql);
+});
+check("其他方言不加 N 前綴", ()=>{
+  for (const d of ['mysql','postgres','sqlite','ansi']) {
+    const r=gen({fields:[{name:'memo',type:'VARCHAR'}],rows:[['中文']],mode:'insert',dialect:d});
+    assert.ok(r.sql.includes("('中文')"), d+': '+r.sql);
+  }
+});
+check("SQLite 註解也放在上一行", ()=>{
+  const s=gen({fields:[{name:'a',type:'INT',comment:'說明'},{name:'b',type:'INT'}],mode:'create',dialect:'sqlite'}).sql;
+  assert.ok(/-- 說明\n\s*"a" INTEGER,/.test(s), s);
+});
 
 const lite=gen({fields:F,mode:'create',dialect:'sqlite'}).sql;
 check("SQLite 忽略長度", ()=>assert.ok(lite.includes('TEXT') && !lite.includes('VARCHAR(50)')));

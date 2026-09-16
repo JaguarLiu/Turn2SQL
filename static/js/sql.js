@@ -64,6 +64,14 @@ function quoteStr(s) {
   return "'" + String(s).replace(/'/g, "''") + "'";
 }
 
+// quoteVal 是「資料值」用的字串字面值。
+// SQL Server 必須加 N 前綴，否則字面值會用非 Unicode 的 codepage 解析，
+// 中文會整個變成 ?（欄位是 NVARCHAR 也一樣）。
+function quoteVal(s, dialect) {
+  const q = quoteStr(s);
+  return dialect === 'mssql' ? 'N' + q : q;
+}
+
 // parseDateValue 自己解析年月日，不用 new Date()。
 // new Date('2026/05/01') 會被當成「本地時間午夜」，再 toISOString() 轉成 UTC 會退一天
 // （UTC+8 會變成 2026-04-30）。回傳 null 代表無法解析。
@@ -128,12 +136,12 @@ function formatValue(raw, field, dialect) {
 
   if (t === 'DATE') {
     const iso = parseDateValue(s);
-    if (iso) return { sql: quoteStr(iso), warning: null };
+    if (iso) return { sql: quoteVal(iso, dialect), warning: null };
     // 解析不出來時原樣輸出，讓資料庫自己判斷，但要提醒使用者
-    return { sql: quoteStr(s), warning: '無法解析為日期，已原樣輸出' };
+    return { sql: quoteVal(s, dialect), warning: '無法解析為日期，已原樣輸出' };
   }
 
-  return { sql: quoteStr(s), warning: null };
+  return { sql: quoteVal(s, dialect), warning: null };
 }
 
 // 收集警告，避免整份資料都壞掉時產生上萬筆訊息
@@ -163,8 +171,13 @@ function buildColumnLines(cols, dialect) {
     if (f.primaryKey || f.nullable === false) line += ' NOT NULL';
     if (inlinePK && f.primaryKey) line += ' PRIMARY KEY';
     if (f.comment) {
-      if (dialect === 'mysql') line += ' COMMENT ' + quoteStr(f.comment);
-      else if (dialect !== 'postgres') line += ' -- ' + String(f.comment).replace(/[\r\n]+/g, ' ');
+      if (dialect === 'mysql') {
+        line += ' COMMENT ' + quoteStr(f.comment);
+      } else if (dialect !== 'postgres') {
+        // 沒有行內註解語法的方言（MSSQL / SQLite / ANSI）把註解放在欄位的「上一行」。
+        // 放在後面的話，join(',\n') 加上的逗號會被 -- 吃掉，整段 CREATE TABLE 就壞了。
+        line = '  -- ' + String(f.comment).replace(/[\r\n]+/g, ' ') + '\n' + line;
+      }
     }
     return line;
   });
